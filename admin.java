@@ -6,6 +6,14 @@ public class Admin {
     private String password = "1";
     private String email = "admin@gmail.com";
     private String phone = "0987654321";
+
+    public String getUsername(){
+        return username;
+    }
+
+    public String getPassword(){
+        return password;
+    }
   
     //Create user
     public void createUser(Person user) {
