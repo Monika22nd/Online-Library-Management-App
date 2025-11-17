@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/QuanLyThuVien.iml" filepath="$PROJECT_DIR$/QuanLyThuVien.iml" />
+      <module fileurl="file://D:/openjfx-17.0.17_windows-x64_bin-sdk/javafx-sdk-17.0.17/lib/lib.iml" filepath="D:/openjfx-17.0.17_windows-x64_bin-sdk/javafx-sdk-17.0.17/lib/lib.iml" />
+    </modules>
+  </component>
+</project>
