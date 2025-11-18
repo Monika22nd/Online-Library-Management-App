@@ -1,5 +1,6 @@
 package controller;
 
+import database.TestDB;
 import javafx.event.ActionEvent;
 
 import java.io.IOException;
@@ -30,11 +31,29 @@ public class LoginController {
 
     @FXML
     protected void handleLoginButton(ActionEvent event){
+        TestDB db = TestDB.getInstance();
+
         String username = usernameField.getText();
         String password = passwordField.getText();
 
         if (username.equals("admin") && password.equals("1")){
             System.out.println("Done");
+        }
+        else if ((username.equals("testuser") && password.equals("10")) || db.checkLogin(username, password)){
+            try{
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/UserHomeScreen.fxml"));
+                Parent root = loader.load();
+
+                Stage stage = new Stage();
+                stage.setTitle("Home");
+                stage.setScene(new Scene(root));
+                stage.show();
+
+                Stage loginStage = (Stage) loginButton.getScene().getWindow();
+                loginStage.close();
+            } catch (IOException e){
+                e.printStackTrace();
+            }
         }
         else {
             showErrorAlert();

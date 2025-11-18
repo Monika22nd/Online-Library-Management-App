@@ -8,13 +8,11 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.text.Font?>
 
-
 <AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.RegisterController">
    <children>
       <StackPane layoutX="259.0" layoutY="230.0" prefHeight="39.0" prefWidth="149.0">
          <children>
             <PasswordField fx:id="passwordRegisterField" />
-            <TextField fx:id="showPasswordField" />
          </children>
       </StackPane>
       <Label alignment="CENTER" layoutX="140.0" layoutY="64.0" text="Đăng ký tài khoản">
@@ -26,9 +24,9 @@
       <Label layoutX="156.0" layoutY="156.0" text="Name" />
       <Label layoutX="150.0" layoutY="199.0" text="Username" />
       <Label layoutX="152.0" layoutY="241.0" text="Password" />
-      <PasswordField layoutX="259.0" layoutY="284.0" />
+      <PasswordField fx:id="confirmPasswordField" layoutX="259.0" layoutY="284.0" />
       <Label layoutX="140.0" layoutY="288.0" text="Confirm password" />
       <TextField fx:id="nameRegisterField" layoutX="259.0" layoutY="152.0" />
-      <Button fx:id="registerButton" layoutX="259.0" layoutY="327.0" mnemonicParsing="false" text="Đăng ký" />
+      <Button fx:id="registerButton" layoutX="259.0" layoutY="327.0" mnemonicParsing="false" onAction="#handleRegisterButton" text="Đăng ký" />
    </children>
 </AnchorPane>
