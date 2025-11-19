@@ -4,9 +4,34 @@
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
 
 <AnchorPane prefHeight="720.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.HomescreenController">
    <children>
+      <MenuBar layoutX="0.0" layoutY="0.0" prefHeight="39.0" prefWidth="1280.0">
+         <menus>
+            <Menu text="Books">
+               <items>
+                  <MenuItem text="Add Book" onAction="#handleAddBookClicked"/>
+                  <MenuItem text="View Books" onAction="#handleViewBooksClicked"/>
+               </items>
+            </Menu>
+            <Menu text="Members">
+               <items>
+                  <MenuItem text="Add Member" onAction="#handleAddMemberClicked"/>
+                  <MenuItem text="View Members" onAction="#handleViewMembersClicked"/>
+               </items>
+            </Menu>
+            <Menu text="Settings">
+               <items>
+                  <MenuItem text="Change Password" onAction="#handleChangePasswordClicked"/>
+                  <MenuItem text="Logout" onAction="#handleLogoutClicked"/>
+               </items>
+            </Menu>
+         </menus>
+      </MenuBar>
       <Hyperlink fx:id="homescreenHyperLink" layoutX="131.0" layoutY="90.0" prefHeight="75.0" prefWidth="75.0">
          <graphic>
             <ImageView fx:id="logoPic" fitHeight="92.0" fitWidth="91.0" pickOnBounds="true" preserveRatio="true">
