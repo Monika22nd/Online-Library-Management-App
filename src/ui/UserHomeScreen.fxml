@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
@@ -32,14 +36,40 @@
             </Menu>
          </menus>
       </MenuBar>
-      <Hyperlink fx:id="homescreenHyperLink" layoutX="131.0" layoutY="90.0" prefHeight="75.0" prefWidth="75.0">
-         <graphic>
-            <ImageView fx:id="logoPic" fitHeight="92.0" fitWidth="91.0" pickOnBounds="true" preserveRatio="true">
-               <image>
-                  <Image fx:id="logoImage" url="@../img/library_logo.png" />
-               </image>
-            </ImageView>
-         </graphic>
-      </Hyperlink>
+
+      <!-- Book slots: each slot has an ImageView, title, and two buttons (Info, Borrow) -->
+      <TilePane layoutX="80.0" layoutY="80.0" prefColumns="3" hgap="30.0" vgap="20.0">
+         <children>
+            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
+               <ImageView fitWidth="120.0" fitHeight="160.0" />
+               <Label text="Book Title 1"/>
+               <HBox spacing="10.0">
+                  <Button fx:id="infoBtn1" text="Info" onAction="#handleBookInfoClicked"/>
+                  <Button fx:id="borrowBtn1" text="Borrow" onAction="#handleBorrowClicked"/>
+               </HBox>
+            </VBox>
+
+            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
+               <ImageView fitWidth="120.0" fitHeight="160.0" />
+               <Label text="Book Title 2"/>
+               <HBox spacing="10.0">
+                  <Button fx:id="infoBtn2" text="Info" onAction="#handleBookInfoClicked"/>
+                  <Button fx:id="borrowBtn2" text="Borrow" onAction="#handleBorrowClicked"/>
+               </HBox>
+            </VBox>
+
+            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
+               <ImageView fitWidth="120.0" fitHeight="160.0" />
+               <Label text="Book Title 3"/>
+               <HBox spacing="10.0">
+                  <Button fx:id="infoBtn3" text="Info" onAction="#handleBookInfoClicked"/>
+                  <Button fx:id="borrowBtn3" text="Borrow" onAction="#handleBorrowClicked"/>
+               </HBox>
+            </VBox>
+         </children>
+      </TilePane>
+
+      <!-- Keep any other existing nodes (home/menu etc.) -->
+      <!-- ...existing code... -->
    </children>
 </AnchorPane>
