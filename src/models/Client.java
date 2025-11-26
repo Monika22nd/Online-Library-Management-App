@@ -1,4 +1,4 @@
-package models;
+/*package models;
 import java.util.*;
 
 public class Client {
@@ -58,3 +58,4 @@ public class Client {
         return this.clientPassword.equals(password);
     }
 }
+*/

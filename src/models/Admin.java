@@ -1,4 +1,6 @@
+/*
 package models;
+
 import java.util.*;
 
 public class Admin {
@@ -54,3 +56,5 @@ public class Admin {
         return Admin.password.equals(password);
     }
 }
+/*
+ */

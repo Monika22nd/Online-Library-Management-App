@@ -1,73 +1,44 @@
 package models;
-import java.util.*;
 
 public class Book {
-    private String bookTitle;
-    private String bookISBN; // book_id
-    private String bookAuthor;
-    private String bookPublicationDate;
-    private int bookCopies;
-    private String bookDesc;
-    private double borrowPrice;
-    private String bookGenre;
-    private boolean isBorrowed;
+    private int id;
+    private String isbn;
+    private String title;
 
-    public Book(String bookTitle, String bookISBN, String bookAuthor, String bookPublicationDate, String bookDesc, String bookGenre){
-        this.bookTitle = bookTitle;
-        this.bookISBN = bookISBN;
-        this.bookAuthor = bookAuthor;
-        this.bookPublicationDate = bookPublicationDate;
-        this.bookDesc = bookDesc;
-        this.bookGenre = bookGenre;
+    private int authorId;
+    private String authorName;
+
+    private String genre;
+    private double price;
+    private int copiesAvailable;
+    private String description;
+
+
+    public Book(int id, String isbn, String title, int authorId, String authorName,
+                String genre, double price, int copiesAvailable, String description) {
+        this.id = id;
+        this.isbn = isbn;
+        this.title = title;
+        this.authorId = authorId;
+        this.authorName = authorName;
+        this.genre = genre;
+        this.price = price;
+        this.copiesAvailable = copiesAvailable;
+        this.description = description;
     }
 
-    // Getters
-    public String getBookTitle() {
-        return bookTitle;
-    }
+    public int getId() { return id; }
+    public String getIsbn() { return isbn; }
+    public String getTitle() { return title; }
+    public int getAuthorId() { return authorId; }
+    public String getAuthorName() { return authorName != null ? authorName : "Unknown"; }
+    public String getGenre() { return genre; }
+    public double getPrice() { return price; }
+    public int getCopiesAvailable() { return copiesAvailable; }
+    public String getDescription() { return description; }
 
-    public String getBookISBN() {
-        return bookISBN;
-    }
 
-    public String getBookAuthor() {
-        return bookAuthor;
-    }
-
-    public double getBorrowPrice() {
-        return borrowPrice;
-    }
-
-    public String getBookDesc() {
-        return bookDesc;
-    }
-
-    public String getBookPublicationDate() {
-        return bookPublicationDate;
-    }
-
-    public String getBookGenre() {
-        return bookGenre;
-    }
-
-    public int getBookCopies() {
-        return bookCopies;
-    }
-
-    public boolean checkIsBorrowed() {
-        return isBorrowed;
-    }
-
-    // Methods
-    public void borrow(Client client){
-        this.isBorrowed = true;
-        this.bookCopies -= 1;
-        client.getBooksBorrowed().add(this);
-    }
-
-    public void returnBook(Client client){
-        this.isBorrowed = false;
-        this.bookCopies += 1;
-        client.getBooksBorrowed().remove(this);
+    public boolean isAvailable() {
+        return copiesAvailable > 0;
     }
 }

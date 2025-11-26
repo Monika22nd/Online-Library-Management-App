@@ -1,63 +1,57 @@
 package controller;
 
-import database.TestDB;
+import database.UserDAO;
+import models.User;
 import javafx.event.ActionEvent;
-
-import java.io.IOException;
-import java.util.*;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.control.Hyperlink;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import java.io.IOException;
 
 public class LoginController {
-    @FXML
-    protected TextField usernameField;
+    @FXML private TextField usernameField;
+    @FXML private PasswordField passwordField;
+    @FXML private Button loginButton;
+    @FXML private Hyperlink registerLink;
 
-    @FXML
-    protected PasswordField passwordField;
-
-    @FXML
-    protected Button loginButton;
-
-    @FXML
-    protected Hyperlink registerLink;
+    private UserDAO userDAO = new UserDAO();
 
     @FXML
     protected void handleLoginButton(ActionEvent event){
-        TestDB db = TestDB.getInstance();
-
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        if (username.equals("admin") && password.equals("1")){
-            System.out.println("Done");
-        }
-        else if ((username.equals("testuser") && password.equals("10")) || db.checkLogin(username, password)){
-            try{
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/UserHomeScreen.fxml"));
-                Parent root = loader.load();
+        User user = userDAO.login(username, password);
 
-                Stage stage = new Stage();
-                stage.setTitle("Home");
-                stage.setScene(new Scene(root));
-                stage.show();
-
-                Stage loginStage = (Stage) loginButton.getScene().getWindow();
-                loginStage.close();
-            } catch (IOException e){
+        if (user != null) {
+            try {
+                openHomeScreen(user);
+            } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
-        else {
+        } else {
             showErrorAlert();
         }
+    }
+
+    private void openHomeScreen(User user) throws IOException {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/UserHomeScreen.fxml"));
+        Parent root = loader.load();
+
+        HomescreenController homeController = loader.getController();
+        homeController.initData(user);
+
+        Stage stage = new Stage();
+        stage.setTitle("Library Management System");
+        stage.setScene(new Scene(root));
+        stage.show();
+
+        Stage loginStage = (Stage) loginButton.getScene().getWindow();
+        loginStage.close();
     }
 
     @FXML
@@ -65,7 +59,6 @@ public class LoginController {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/RegisterView.fxml"));
             Parent root = loader.load();
-
             Stage stage = new Stage();
             stage.setTitle("Register");
             stage.setScene(new Scene(root));
@@ -76,11 +69,10 @@ public class LoginController {
         }
     }
 
-    protected void showErrorAlert(){
+    private void showErrorAlert(){
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Login Failed!");
-        alert.setHeaderText(null);
-        alert.setContentText("Invalid username or password");
+        alert.setTitle("Login Failed");
+        alert.setContentText("Sai tên đăng nhập hoặc mật khẩu.");
         alert.showAndWait();
     }
 }

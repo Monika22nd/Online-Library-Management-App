@@ -1,4 +1,4 @@
-package database;
+/*package database;
 
 import java.util.*;
 
@@ -33,3 +33,4 @@ public class TestDB {
         mp.put(username, password);
     }
 }
+*/

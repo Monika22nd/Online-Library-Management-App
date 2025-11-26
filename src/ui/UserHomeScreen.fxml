@@ -1,75 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.image.Image?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.AnchorPane?>
-<?import javafx.scene.layout.TilePane?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.TilePane?>
 
-<AnchorPane prefHeight="720.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.HomescreenController">
-   <children>
-      <MenuBar layoutX="0.0" layoutY="0.0" prefHeight="39.0" prefWidth="1280.0">
-         <menus>
-            <Menu text="Books">
-               <items>
-                  <MenuItem text="Add Book" onAction="#handleAddBookClicked"/>
-                  <MenuItem text="View Books" onAction="#handleViewBooksClicked"/>
-               </items>
-            </Menu>
-            <Menu text="Members">
-               <items>
-                  <MenuItem text="Add Member" onAction="#handleAddMemberClicked"/>
-                  <MenuItem text="View Members" onAction="#handleViewMembersClicked"/>
-               </items>
-            </Menu>
-            <Menu text="Settings">
-               <items>
-                  <MenuItem text="Change Password" onAction="#handleChangePasswordClicked"/>
-                  <MenuItem text="Logout" onAction="#handleLogoutClicked"/>
-               </items>
-            </Menu>
-         </menus>
-      </MenuBar>
+<BorderPane prefHeight="720.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.HomescreenController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="10.0">
+            <children>
+                <MenuBar HBox.hgrow="ALWAYS">
+                    <menus>
+                        <Menu text="Hệ thống">
+                            <items>
+                                <MenuItem onAction="#handleLogoutClicked" text="Đăng xuất" />
+                            </items>
+                        </Menu>
+                    </menus>
+                </MenuBar>
 
-      <!-- Book slots: each slot has an ImageView, title, and two buttons (Info, Borrow) -->
-      <TilePane layoutX="80.0" layoutY="80.0" prefColumns="3" hgap="30.0" vgap="20.0">
-         <children>
-            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
-               <ImageView fitWidth="120.0" fitHeight="160.0" />
-               <Label text="Book Title 1"/>
-               <HBox spacing="10.0">
-                  <Button fx:id="infoBtn1" text="Info" onAction="#handleBookInfoClicked"/>
-                  <Button fx:id="borrowBtn1" text="Borrow" onAction="#handleBorrowClicked"/>
-               </HBox>
-            </VBox>
+                <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;" text="Xin chào User" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button fx:id="cartButton" onAction="#handleCartClicked" text="Giỏ mượn (0)" />
+            </children>
+            <padding>
+                <Insets bottom="5.0" left="5.0" right="10.0" top="5.0" />
+            </padding>
+        </HBox>
+    </top>
 
-            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
-               <ImageView fitWidth="120.0" fitHeight="160.0" />
-               <Label text="Book Title 2"/>
-               <HBox spacing="10.0">
-                  <Button fx:id="infoBtn2" text="Info" onAction="#handleBookInfoClicked"/>
-                  <Button fx:id="borrowBtn2" text="Borrow" onAction="#handleBorrowClicked"/>
-               </HBox>
-            </VBox>
-
-            <VBox alignment="CENTER" spacing="8.0" prefWidth="200.0">
-               <ImageView fitWidth="120.0" fitHeight="160.0" />
-               <Label text="Book Title 3"/>
-               <HBox spacing="10.0">
-                  <Button fx:id="infoBtn3" text="Info" onAction="#handleBookInfoClicked"/>
-                  <Button fx:id="borrowBtn3" text="Borrow" onAction="#handleBorrowClicked"/>
-               </HBox>
-            </VBox>
-         </children>
-      </TilePane>
-
-      <!-- Keep any other existing nodes (home/menu etc.) -->
-      <!-- ...existing code... -->
-   </children>
-</AnchorPane>
+    <center>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED">
+            <content>
+                <TilePane fx:id="bookContainer" hgap="20.0" prefColumns="5" vgap="20.0">
+                    <padding>
+                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                    </padding>
+                </TilePane>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>
