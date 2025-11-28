@@ -29,10 +29,18 @@ public class Book {
 
     public int getId() { return id; }
     public String getIsbn() { return isbn; }
-    public String getTitle() { return title; }
+
+    public String getTitle() {
+        return title != null ? title : "";
+    }
+
     public int getAuthorId() { return authorId; }
     public String getAuthorName() { return authorName != null ? authorName : "Unknown"; }
-    public String getGenre() { return genre; }
+
+    public String getGenre() {
+        return genre != null? genre : "";
+    }
+
     public double getPrice() { return price; }
     public int getCopiesAvailable() { return copiesAvailable; }
     public String getDescription() { return description; }
