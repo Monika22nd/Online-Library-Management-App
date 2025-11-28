@@ -15,17 +15,24 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.scene.control.ListView;
+import javafx.geometry.Insets;
+import javafx.scene.layout.Priority;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+
 public class HomescreenController {
 
     @FXML private Button homeButton;    // Dùng để lấy Stage
     @FXML private Label welcomeLabel;   // Hiển thị tên User
     @FXML private Button cartButton;    // Nút giỏ hàng
+    @FXML private Button viewBorrowedButton;
 
     // Container chứa danh sách sách (Quan trọng: Cần fx:id trong UserHomeScreen.fxml)
     @FXML private TilePane bookContainer;
@@ -34,6 +41,7 @@ public class HomescreenController {
     private User currentUser;
     private BookDAO bookDAO = new BookDAO();
     private List<Book> cart = new ArrayList<>();//
+    private Scene previousScene;
 
     // --- 1. DANH SÁCH GỐC (Chứa toàn bộ sách lấy từ DB) ---// Giỏ hàng
     private List<Book> masterBookList = new ArrayList<>();
@@ -190,6 +198,37 @@ public class HomescreenController {
         }
         alert.setContentText(content.toString());
         alert.showAndWait();
+    }
+
+    @FXML
+    private void handleViewBorrowedClicked(ActionEvent event) {
+        Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
+        // Save current scene to return later
+        previousScene = viewBorrowedButton.getScene();
+
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(15));
+
+        Label title = new Label("Sách đã chọn (" + cart.size() + ")");
+        ListView<String> listView = new ListView<>();
+        ObservableList<String> items = FXCollections.observableArrayList();
+        for (Book b : cart) {
+            items.add(b.getTitle() + " - " + b.getAuthorName());
+        }
+        listView.setItems(items);
+        VBox.setVgrow(listView, Priority.ALWAYS);
+
+        Button backButton = new Button("Quay lại");
+        backButton.setOnAction(e -> {
+            if (previousScene != null) {
+                stage.setScene(previousScene);
+            }
+        });
+
+        root.getChildren().addAll(title, listView, backButton);
+
+        Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
+        stage.setScene(borrowedScene);
     }
 
     @FXML

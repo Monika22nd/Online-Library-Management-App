@@ -29,6 +29,7 @@
 
                 <Label fx:id="welcomeLabel" alignment="CENTER" prefHeight="17.0" prefWidth="381.0" style="-fx-font-weight: bold;" text="Xin chào User" textAlignment="JUSTIFY" />
                 <Region prefHeight="25.0" prefWidth="0.0" HBox.hgrow="ALWAYS" />
+                <Button fx:id="viewBorrowedButton" onAction="#handleViewBorrowedClicked" text="Sách đã mượn" />
             <TextField fx:id="searchField" prefHeight="25.0" prefWidth="356.0" promptText="Tìm kiếm sách, tác giả..." />
                 <Button fx:id="cartButton" onAction="#handleCartClicked" text="Giỏ mượn (0)" />
             </children>
