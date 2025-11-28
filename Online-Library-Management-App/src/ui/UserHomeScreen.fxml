@@ -28,6 +28,7 @@
 
                 <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;" text="Xin chào User" />
                 <Region HBox.hgrow="ALWAYS" />
+                <Button fx:id="viewBorrowedButton" onAction="#handleViewBorrowedClicked" text="Sách đã mượn" />
                 <Button fx:id="cartButton" onAction="#handleCartClicked" text="Giỏ mượn (0)" />
             </children>
             <padding>

@@ -34,7 +34,7 @@ public class RegisterController {
         }
 
         if (!password.equals(confirmPassword)) {
-            showAlert("Lỗi", "Mật khẩu xác nhận không trùng khớp.");
+            showAlert("Lỗi", "Mật khẩu không trùng khớp.");
             return;
         }
 
