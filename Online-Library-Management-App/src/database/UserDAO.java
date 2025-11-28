@@ -34,7 +34,7 @@ public class UserDAO {
         String sql = "INSERT INTO users (name, username, password, email, phone, role) VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, user.getName());
             pstmt.setString(2, user.getUsername());
@@ -48,6 +48,24 @@ public class UserDAO {
         } catch (SQLException e) {
             e.printStackTrace();
 
+        }
+        return false;
+    }
+    public boolean isUserExists(String username, String email, String phone) {
+        String sql = "SELECT COUNT(*) FROM users WHERE username = ? OR email = ? OR phone = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, username);
+            pstmt.setString(2, email);
+            pstmt.setString(3, phone);
+            
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0; // Returns true if count > 0
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return false;
     }

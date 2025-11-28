@@ -14,6 +14,8 @@ public class RegisterController {
     @FXML private PasswordField passwordRegisterField;
     @FXML private PasswordField confirmPasswordField;
     @FXML private Button registerButton;
+    @FXML private TextField emailRegisterField;
+    @FXML private TextField phoneRegisterField;
 
     private UserDAO userDAO = new UserDAO();
 
@@ -23,6 +25,8 @@ public class RegisterController {
         String username = usernameRegisterField.getText();
         String password = passwordRegisterField.getText();
         String confirmPassword = confirmPasswordField.getText();
+        String email = emailRegisterField.getText();
+        String phone = phoneRegisterField.getText();
 
         if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
             showAlert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
@@ -34,15 +38,15 @@ public class RegisterController {
             return;
         }
 
-        // Tạo user mới
-        User newUser = new User(name, username, password, "", "", Role.CLIENT);
+        // Tạo user mới (include email and phone)
+        User newUser = new User(name, username, password, email, phone, Role.CLIENT);
 
-        if (userDAO.registerUser(newUser)) {
+        if (userDAO.registerUser(newUser) && !userDAO.isUserExists(newUser.getUsername(), newUser.getEmail(), newUser.getPhone())) {
             showAlert("Thành công", "Đăng ký thành công! Vui lòng đăng nhập.");
             Stage stage = (Stage) registerButton.getScene().getWindow();
             stage.close();
         } else {
-            showAlert("Thất bại", "Tên đăng nhập đã tồn tại.");
+            showAlert("Thất bại", "Tên đăng nhập, email hoặc số điện thoại đã được sử dụng.");
         }
     }
 
