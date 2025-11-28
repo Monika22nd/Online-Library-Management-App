@@ -28,6 +28,11 @@ INSERT INTO `authors` VALUES
 (2,'J.R.R. Tolkien','English writer, poet, philologist, and academic.'),
 (3,'George Orwell','English novelist, essayist, journalist and critic.');
 
+INSERT INTO `authors` (name, biography) VALUES 
+('F. Scott Fitzgerald', 'American novelist, famous for depicting the Jazz Age.'),
+('Jane Austen', 'English novelist known for her realism and biting social commentary.'),
+('Isaac Asimov', 'American writer and professor of biochemistry, known for science fiction.');
+
 --
 -- Table structure for table `users`
 -- This table stores user information and credentials.
@@ -81,6 +86,18 @@ INSERT INTO `books` VALUES
 (3,'978-0451524935','1984',3,'Dystopian',15,7,'A dystopian social science fiction novel and cautionary tale.'),
 (4,'978-0747538493','Harry Potter and the Chamber of Secrets',1,'Fantasy',19.99,8,'The second book in the Harry Potter series.');
 
+INSERT INTO `books` (isbn, title, author_id, genre, price, copies_available, description) VALUES 
+('978-0747542155', 'Harry Potter and the Prisoner of Azkaban', 1, 'Fantasy', 19.99, 6, 'The third book in the Harry Potter series.'),
+('978-0747546245', 'Harry Potter and the Goblet of Fire', 1, 'Fantasy', 22.99, 4, 'The fourth book in the Harry Potter series.'),
+('978-0261102217', 'The Hobbit', 2, 'Fantasy', 14.99, 8, 'A prelude to The Lord of the Rings.'),
+('978-0261102361', 'The Silmarillion', 2, 'Fantasy', 18.50, 3, 'A collection of mythopoeic stories by J.R.R. Tolkien.'),
+('978-0451526342', 'Animal Farm', 3, 'Political Satire', 12.00, 15, 'A satirical allegorical novella about the Russian Revolution.');
+
+INSERT INTO `books` (isbn, title, author_id, genre, price, copies_available, description) VALUES 
+('978-0743273565', 'The Great Gatsby', 4, 'Classic', 15.99, 12, 'A novel about the American dream and the roaring twenties.'),
+('978-0141439518', 'Pride and Prejudice', 5, 'Romance', 10.50, 9, 'A romantic novel of manners.'),
+('978-0553293357', 'Foundation', 6, 'Science Fiction', 16.99, 5, 'The first novel in the Foundation Cycle.'),
+('978-0553294385', 'I, Robot', 6, 'Science Fiction', 14.99, 7, 'A collection of science fiction short stories about robots.');
 --
 -- Table structure for table `loans`
 -- This table tracks book borrowing records.
@@ -106,3 +123,9 @@ CREATE TABLE `loans` (
 --
 INSERT INTO `loans` VALUES 
 (1,2,1,'2025-11-01','2025-11-15',NULL,'BORROWED');
+
+select * from users;
+
+select * from books;
+
+select * from loans;
