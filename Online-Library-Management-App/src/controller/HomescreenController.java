@@ -19,10 +19,12 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.Priority;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.ButtonType;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class HomescreenController {
 
@@ -37,6 +39,9 @@ public class HomescreenController {
     private User currentUser;
     private BookDAO bookDAO = new BookDAO();
     private List<Book> cart = new ArrayList<>(); // Giỏ hàng
+
+    // NEW: store confirmed borrowed books
+    private List<Book> borrowedBooks = new ArrayList<>();
 
     // Store previous scene so we can go back
     private Scene previousScene;
@@ -124,16 +129,41 @@ public class HomescreenController {
             return;
         }
 
-        // Hiện tại chỉ hiện thông báo, sau này sẽ mở màn hình ConfirmBorrow
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Xác nhận mượn");
-        alert.setHeaderText("Sách đã chọn (" + cart.size() + "):");
+        // Build detailed list of books for confirmation content
         StringBuilder content = new StringBuilder();
+        content.append("Bạn có chắc muốn mượn ").append(cart.size()).append(" sách đã chọn?\n\n");
+        content.append("Danh sách sách:\n");
         for (Book b : cart) {
-            content.append("- ").append(b.getTitle()).append("\n");
+            String author = "";
+            try { author = b.getAuthorName(); } catch (Exception ex) { /* ignore if not available */ }
+            content.append("- ").append(b.getTitle());
+            if (author != null && !author.isEmpty()) content.append(" (").append(author).append(")");
+            content.append("\n");
         }
-        alert.setContentText(content.toString());
-        alert.showAndWait();
+
+        // Show confirmation dialog to finalize borrow with detailed content
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Xác nhận mượn");
+        confirm.setHeaderText(null);
+        confirm.setContentText(content.toString());
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            // Move items from cart into borrowedBooks and clear cart
+            for (Book b : cart) {
+                if (!borrowedBooks.contains(b)) {
+                    borrowedBooks.add(b);
+                }
+            }
+            cart.clear();
+            updateCartUI();
+            Alert success = new Alert(Alert.AlertType.INFORMATION);
+            success.setTitle("Thành công");
+            success.setHeaderText(null);
+            success.setContentText("Đã mượn sách thành công.");
+            success.showAndWait();
+        } else {
+            // User cancelled
+        }
     }
 
     @FXML
@@ -142,14 +172,27 @@ public class HomescreenController {
         // Save current scene to return later
         previousScene = viewBorrowedButton.getScene();
 
+        // If no borrowed books, show a warning and return to current scene
+        if (borrowedBooks.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Thông báo");
+            alert.setHeaderText(null);
+            alert.setContentText("Bạn chưa mượn cuốn sách nào.");
+            alert.showAndWait();
+            return;
+        }
+
         VBox root = new VBox(10);
         root.setPadding(new Insets(15));
 
-        Label title = new Label("Sách đã chọn (" + cart.size() + ")");
+        Label title = new Label("Sách đã mượn (" + borrowedBooks.size() + ")");
         ListView<String> listView = new ListView<>();
         ObservableList<String> items = FXCollections.observableArrayList();
-        for (Book b : cart) {
-            items.add(b.getTitle() + " - " + b.getAuthorName());
+        for (Book b : borrowedBooks) {
+            // use available getters for display
+            String author = "";
+            try { author = b.getAuthorName(); } catch (Exception ex) { /* fallback if not available */ }
+            items.add(b.getTitle() + (author.isEmpty() ? "" : " - " + author));
         }
         listView.setItems(items);
         VBox.setVgrow(listView, Priority.ALWAYS);

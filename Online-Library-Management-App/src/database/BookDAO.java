@@ -44,8 +44,8 @@ public class BookDAO {
                 "WHERE b.title LIKE ? OR a.name LIKE ?"; // Tìm theo tên sách hoặc tên tác giả
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            String searchPattern = "%" + keyword +"%";
+            PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            String searchPattern = "%" + keyword + "%";
             pstmt.setString(1, searchPattern);
             pstmt.setString(2, searchPattern);
 
