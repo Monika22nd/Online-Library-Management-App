@@ -20,6 +20,8 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.Priority;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.ListCell;
+import models.Author;
 
 import java.io.IOException;
 import java.util.ArrayList;
