@@ -11,7 +11,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
+import util.SceneHelper; // NEW
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -262,16 +264,14 @@ public class AdminController {
 
     @FXML
     private void handleBack() {
-        // go back to user home (simple approach: reload UserHomeScreen.fxml)
         try {
-            Stage stage = (Stage) userTable.getScene().getWindow();
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/ui/UserHomeScreen.fxml"));
-            javafx.scene.Parent root = loader.load();
-            controller.HomescreenController hc = loader.getController();
-            hc.initData(currentAdmin); // pass admin back (they are admin)
-            stage.setScene(new javafx.scene.Scene(root, stage.getWidth(), stage.getHeight()));
-            stage.centerOnScreen();
-        } catch (Exception ex) {
+            Stage stage = SceneHelper.getStage(userTable);
+            SceneHelper.switchScene(stage, "/ui/UserHomeScreen.fxml", "Home", controller -> {
+                if (controller instanceof HomescreenController) {
+                    ((HomescreenController) controller).initData(currentAdmin);
+                }
+            });
+        } catch (IOException ex) {
             ex.printStackTrace();
             showAlert("Lỗi", "Không thể quay lại: " + ex.getMessage());
         }

@@ -12,11 +12,13 @@ import models.Author;
 import models.Book;
 import models.Loan;
 import models.User;
+import util.SceneHelper; // NEW
 
 import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class BorrowedBooksController {
 
@@ -43,8 +45,8 @@ public class BorrowedBooksController {
         loanList = loanDAO.getBorrowedLoansByUser(currentUser.getId());
         titleLabel.setText("Sách đã mượn (" + loanList.size() + ")");
 
-        ObservableList<HBox> rows = FXCollections.observableArrayList();
-        for (Loan ln : loanList) {
+        // Build rows using streams
+        List<HBox> rows = loanList.stream().map(ln -> {
             Book b = bookDAO.getBookById(ln.getBookId());
             String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
             String authorName = (b != null && b.getAuthorName() != null) ? b.getAuthorName() : "";
@@ -75,10 +77,12 @@ public class BorrowedBooksController {
                 a.showAndWait();
             });
 
-            rows.add(new HBox(10, titleLabel, authorLink, dueLabel));
-        }
+            return new HBox(10, titleLabel, authorLink, dueLabel);
+        }).collect(Collectors.toList());
 
-        listView.setItems(rows);
+        ObservableList<HBox> obsRows = FXCollections.observableArrayList(rows);
+        listView.setItems(obsRows);
+
         listView.setCellFactory(lv -> new javafx.scene.control.ListCell<HBox>() {
             @Override
             protected void updateItem(HBox item, boolean empty) {
@@ -118,7 +122,7 @@ public class BorrowedBooksController {
 
         backBtn.setOnAction(ev -> {
             if (previousScene != null) {
-                Stage currentStage = (Stage) backBtn.getScene().getWindow();
+                Stage currentStage = SceneHelper.getStage(backBtn);
                 currentStage.setScene(previousScene);
             }
         });

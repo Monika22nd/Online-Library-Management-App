@@ -23,6 +23,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.ListCell;
 import models.Author; // NEW
+import util.SceneHelper; // NEW
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -92,17 +93,12 @@ public class HomescreenController {
 
     private void openAdminPanel() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/AdminPanel.fxml"));
-            Parent root = loader.load();
-
-            // Pass current user to admin controller (optional)
-            controller.AdminController adminCtrl = loader.getController();
-            adminCtrl.initData(currentUser);
-
-            Stage stage = (Stage) cartButton.getScene().getWindow();
-            stage.setTitle("Admin Panel");
-            stage.setScene(new Scene(root, stage.getWidth(), stage.getHeight()));
-            stage.centerOnScreen();
+            Stage stage = SceneHelper.getStage(cartButton);
+            SceneHelper.switchScene(stage, "/ui/AdminPanel.fxml", "Admin Panel", controller -> {
+                if (controller instanceof AdminController) {
+                    ((AdminController) controller).initData(currentUser);
+                }
+            });
         } catch (IOException ex) {
             ex.printStackTrace();
             Alert err = new Alert(Alert.AlertType.ERROR, "Không thể mở Admin Panel: " + ex.getMessage(), ButtonType.OK);
@@ -271,31 +267,28 @@ public class HomescreenController {
         List<Integer> alreadyIds = loanDAO.getAlreadyBorrowedBookIds(currentUser != null ? currentUser.getId() : -1, cart);
         Set<Integer> alreadySet = new HashSet<>(alreadyIds);
 
-        // If some books are already borrowed, inform user and remove them from the to-save list
-        List<Book> toSave = new ArrayList<>();
-        StringBuilder alreadyMsg = new StringBuilder();
-        for (Book b : cart) {
-            if (alreadySet.contains(b.getId())) {
-                try {
-                    alreadyMsg.append("- ").append(b.getTitle()).append(" (").append(b.getAuthorName()).append(")\n");
-                } catch (Exception ex) {
-                    alreadyMsg.append("- ").append(b.getTitle()).append("\n");
-                }
-            } else {
-                toSave.add(b);
-            }
-        }
+        // --- Replaced manual loop with Stream API ---
+        List<Book> duplicateBooks = cart.stream()
+                .filter(b -> alreadySet.contains(b.getId()))
+                .collect(Collectors.toList());
 
-        if (!alreadyMsg.toString().isEmpty()) {
+        List<Book> toSave = cart.stream()
+                .filter(b -> !alreadySet.contains(b.getId()))
+                .collect(Collectors.toList());
+
+        String alreadyMsg = duplicateBooks.stream()
+                .map(b -> "- " + b.getTitle() + (b.getAuthorName() != null && !b.getAuthorName().isEmpty() ? " (" + b.getAuthorName() + ")" : ""))
+                .collect(Collectors.joining("\n"));
+
+        if (!alreadyMsg.isEmpty()) {
             Alert info = new Alert(Alert.AlertType.INFORMATION);
             info.setTitle("Một số sách đã mượn");
             info.setHeaderText("Bạn đã mượn những cuốn sau trước đó. Chúng sẽ được bỏ qua:");
-            info.setContentText(alreadyMsg.toString());
+            info.setContentText(alreadyMsg);
             info.showAndWait();
         }
 
         if (toSave.isEmpty()) {
-            // Nothing left to borrow after removing duplicates
             Alert none = new Alert(Alert.AlertType.INFORMATION);
             none.setTitle("Không có sách để mượn");
             none.setHeaderText(null);
@@ -304,26 +297,22 @@ public class HomescreenController {
             return;
         }
 
-        // Build detailed list of books for confirmation content using only toSave
+        // Build confirmation content using Stream join
+        String listContent = toSave.stream()
+                .map(b -> "- " + b.getTitle() + (b.getAuthorName() != null && !b.getAuthorName().isEmpty() ? " (" + b.getAuthorName() + ")" : ""))
+                .collect(Collectors.joining("\n"));
+
         StringBuilder content = new StringBuilder();
         content.append("Bạn có chắc muốn mượn ").append(toSave.size()).append(" sách đã chọn?\n\n");
         content.append("Danh sách sách:\n");
-        for (Book b : toSave) {
-            String author = "";
-            try { author = b.getAuthorName(); } catch (Exception ex) { /* ignore if not available */ }
-            content.append("- ").append(b.getTitle());
-            if (author != null && !author.isEmpty()) content.append(" (").append(author).append(")");
-            content.append("\n");
-        }
+        content.append(listContent);
 
-        // Show confirmation dialog to finalize borrow with detailed content
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Xác nhận mượn");
         confirm.setHeaderText(null);
         confirm.setContentText(content.toString());
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            // Ensure we have a logged-in user
             if (currentUser == null) {
                 Alert err = new Alert(Alert.AlertType.ERROR);
                 err.setTitle("Lỗi");
@@ -333,16 +322,15 @@ public class HomescreenController {
                 return;
             }
 
-            // Persist to database via LoanDAO for only toSave list
             boolean saved = loanDAO.addLoans(currentUser.getId(), toSave);
             if (saved) {
-                // Move saved items from cart into borrowedBooks and remove them from cart
-                for (Book b : toSave) {
-                    if (!borrowedBooks.contains(b)) {
-                        borrowedBooks.add(b);
-                    }
-                    cart.remove(b);
-                }
+                // bulk update borrowedBooks and remove from cart using streams
+                List<Book> newBorrowed = toSave.stream()
+                        .filter(b -> !borrowedBooks.contains(b))
+                        .collect(Collectors.toList());
+                borrowedBooks.addAll(newBorrowed);
+                cart.removeAll(toSave);
+
                 updateCartUI();
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
                 success.setTitle("Thành công");
@@ -363,31 +351,20 @@ public class HomescreenController {
 
     @FXML
     private void handleViewBorrowedClicked(ActionEvent event) {
-        // Save current scene so BorrowedBooksController can go back
-        if (viewBorrowedButton == null || cartButton == null) {
-            // fallback: show error
+        if (viewBorrowedButton == null) {
             Alert a = new Alert(Alert.AlertType.ERROR, "Không thể mở màn hình sách đã mượn.", ButtonType.OK);
             a.showAndWait();
             return;
         }
 
         try {
-            // store previous scene
-            previousScene = viewBorrowedButton.getScene();
-
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/BorrowedBooks.fxml"));
-            Parent root = loader.load();
-
-            // initialize controller with current user and previous scene
-            Object ctrl = loader.getController();
-            if (ctrl instanceof BorrowedBooksController) {
-                ((BorrowedBooksController) ctrl).initData(currentUser, previousScene);
-            }
-
-            Stage stage = (Stage) cartButton.getScene().getWindow();
-            stage.setTitle("Sách đã mượn");
-            stage.setScene(new Scene(root, stage.getWidth(), stage.getHeight()));
-            stage.centerOnScreen();
+            previousScene = viewBorrowedButton.getScene(); // Store scene before switching
+            Stage stage = SceneHelper.getStage(viewBorrowedButton);
+            SceneHelper.switchScene(stage, "/ui/BorrowedBooks.fxml", "Sách đã mượn", controller -> {
+                if (controller instanceof BorrowedBooksController) {
+                    ((BorrowedBooksController) controller).initData(currentUser, previousScene);
+                }
+            });
         } catch (IOException ex) {
             ex.printStackTrace();
             Alert err = new Alert(Alert.AlertType.ERROR, "Không thể mở màn hình sách đã mượn: " + ex.getMessage(), ButtonType.OK);
@@ -398,14 +375,8 @@ public class HomescreenController {
     @FXML
     private void handleLogoutClicked(ActionEvent event) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/LoginView.fxml"));
-            Parent root = loader.load();
-
-            // Lấy Stage hiện tại để chuyển cảnh
-            Stage stage = (Stage) cartButton.getScene().getWindow();
-            stage.setTitle("Login");
-            stage.setScene(new Scene(root));
-            stage.centerOnScreen();
+            Stage stage = SceneHelper.getStage(cartButton);
+            SceneHelper.switchScene(stage, "/ui/LoginView.fxml", "Login", null);
         } catch (IOException e) {
             e.printStackTrace();
         }
