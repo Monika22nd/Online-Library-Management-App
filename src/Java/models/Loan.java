@@ -1,4 +1,4 @@
-package models;
+package Java.models;
 import java.sql.Date;
 
 public class Loan {

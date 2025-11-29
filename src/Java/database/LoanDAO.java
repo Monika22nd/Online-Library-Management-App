@@ -1,7 +1,7 @@
-package database;
+package Java.database;
 
-import models.Book;
-import models.Loan;
+import Java.models.Book;
+import Java.models.Loan;
 
 import javax.xml.crypto.Data;
 import java.sql.*;
@@ -188,4 +188,5 @@ public class LoanDAO {
         }
         return loans;
     }
+
 }

@@ -1,7 +1,7 @@
-package controller;
+package Java.controller;
 
-import database.UserDAO;
-import models.User;
+import Java.database.UserDAO;
+import Java.models.User;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;

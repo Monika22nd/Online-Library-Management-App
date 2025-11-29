@@ -1,4 +1,4 @@
-package models;
+package Java.models;
 
 public class Book {
     private int id;

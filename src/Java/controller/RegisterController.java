@@ -1,8 +1,8 @@
-package controller;
+package Java.controller;
 
-import database.UserDAO;
-import models.Role;
-import models.User;
+import Java.database.UserDAO;
+import Java.models.Role;
+import Java.models.User;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -21,37 +21,42 @@ public class RegisterController {
 
     @FXML
     protected void handleRegisterButton(ActionEvent event){
-        String name = nameRegisterField.getText();
-        String username = usernameRegisterField.getText();
+        String name = nameRegisterField.getText().trim();
+        String username = usernameRegisterField.getText().trim();
         String password = passwordRegisterField.getText();
         String confirmPassword = confirmPasswordField.getText();
-        String email = emailRegisterField.getText();
-        String phone = phoneRegisterField.getText();
+        String email = emailRegisterField.getText().trim();
+        String phone = phoneRegisterField.getText().trim();
 
         if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            showAlert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Vui lòng nhập đầy đủ thông tin.");
             return;
         }
 
         if (!password.equals(confirmPassword)) {
-            showAlert("Lỗi", "Mật khẩu xác nhận không trùng khớp.");
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Mật khẩu xác nhận không trùng khớp.");
             return;
         }
 
-        // Tạo user mới (include email and phone)
+        // KIỂM TRA TRÙNG (TỪ BRANCH MỚI)
+        if (userDAO.isUserExists(username, email, phone)) {
+            showAlert(Alert.AlertType.ERROR, "Thất bại", "Username, Email hoặc SĐT đã tồn tại.");
+            return;
+        }
+
         User newUser = new User(name, username, password, email, phone, Role.CLIENT);
 
-        if (userDAO.registerUser(newUser) && !userDAO.isUserExists(newUser.getUsername(), newUser.getEmail(), newUser.getPhone())) {
-            showAlert("Thành công", "Đăng ký thành công! Vui lòng đăng nhập.");
+        if (userDAO.registerUser(newUser)) {
+            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đăng ký thành công! Vui lòng đăng nhập.");
             Stage stage = (Stage) registerButton.getScene().getWindow();
             stage.close();
         } else {
-            showAlert("Thất bại", "Tên đăng nhập, email hoặc số điện thoại đã được sử dụng.");
+            showAlert(Alert.AlertType.ERROR, "Thất bại", "Đăng ký thất bại.");
         }
     }
 
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);

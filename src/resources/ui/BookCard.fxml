@@ -10,7 +10,7 @@
 <VBox alignment="CENTER" prefHeight="220.0" prefWidth="160.0" spacing="5.0"
       style="-fx-border-color: #cccccc; -fx-background-color: white; -fx-padding: 10; -fx-border-radius: 5;"
       xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="controller.BookCardController">
+      fx:controller="Java.controller.BookCardController">
     <children>
         <ImageView fx:id="bookImage" fitHeight="100.0" fitWidth="80.0" pickOnBounds="true" preserveRatio="true" />
         <Label fx:id="bookTitle" style="-fx-font-weight: bold;" text="Tên sách" wrapText="true" />

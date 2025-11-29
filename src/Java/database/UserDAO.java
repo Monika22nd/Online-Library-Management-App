@@ -1,7 +1,7 @@
-package database;
+package Java.database;
 
-import models.Role;
-import models.User;
+import Java.models.Role;
+import Java.models.User;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;

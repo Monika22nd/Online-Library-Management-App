@@ -1,18 +1,18 @@
-package controller;
+package Java.controller;
 
-import database.UserDAO;
-import database.BookDAO;
-import models.User;
-import models.Book;
-import models.Role;
+import Java.database.UserDAO;
+import Java.database.BookDAO;
+import Java.models.User;
+import Java.models.Book;
+import Java.models.Role;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
-import database.LoanDAO;
-import models.Loan;
+import Java.database.LoanDAO;
+import Java.models.Loan;
 import java.sql.Date;
 
 import java.util.List;
@@ -279,7 +279,7 @@ public class AdminController {
             Stage stage = (Stage) userTable.getScene().getWindow();
             javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/ui/UserHomeScreen.fxml"));
             javafx.scene.Parent root = loader.load();
-            controller.HomescreenController hc = loader.getController();
+            Java.controller.HomescreenController hc = loader.getController();
             hc.initData(currentAdmin); // pass admin back (they are admin)
             stage.setScene(new javafx.scene.Scene(root, stage.getWidth(), stage.getHeight()));
             stage.centerOnScreen();

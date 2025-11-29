@@ -1,7 +1,7 @@
-package database;
+package Java.database;
 
-import models.Author;
-import models.Book;
+import Java.models.Author;
+import Java.models.Book;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -173,5 +173,44 @@ public class BookDAO {
             e.printStackTrace();
         }
         return false;
+    }
+
+    // 8. Lấy tác giả kèm tiểu sử
+    public Author getAuthorById(Integer authorId) {
+        if (authorId == null) return null;
+        String sql = "SELECT id, name, biography FROM authors WHERE id = ?";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, authorId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Author(
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getString("biography")
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    //9. Lấy danh sách tất cả thể loại để đổ vào ComboBox
+    public List<String> getAllGenres() {
+        List<String> genres = new ArrayList<>();
+        String sql = "SELECT DISTINCT genre FROM books WHERE genre IS NOT NULL AND TRIM(genre) <> '' ORDER BY genre";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String g = rs.getString("genre");
+                if (g != null && !g.trim().isEmpty()) genres.add(g);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return genres;
     }
 }

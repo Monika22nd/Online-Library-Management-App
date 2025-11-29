@@ -1,4 +1,4 @@
-package models;
+package Java.models;
 
 public enum Role {
     ADMIN,
