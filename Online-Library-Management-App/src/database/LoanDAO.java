@@ -1,20 +1,28 @@
 package database;
 
 import models.Book;
+import models.Loan;
 import java.sql.*;
 import java.util.Calendar;
 import java.util.List;
 import java.util.ArrayList;
 
 public class LoanDAO {
-    // Add multiple loans in a batch. Returns true if all inserts succeed.
+    // Add multiple loans in a batch. Returns true if all inserts succeed and copies are decremented.
     public boolean addLoans(int userId, List<Book> books) {
         if (books == null || books.isEmpty()) return false;
 
-        String sql = "INSERT INTO loans (user_id, book_id, borrow_date, due_date, status) VALUES (?, ?, ?, ?, 'BORROWED')";
-        try (Connection con = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = con.prepareStatement(sql)) {
+        String insertSql = "INSERT INTO loans (user_id, book_id, borrow_date, due_date, status) VALUES (?, ?, ?, ?, 'BORROWED')";
+        String decrementSql = "UPDATE books SET copies_available = copies_available - 1 WHERE id = ? AND copies_available > 0";
 
+        Connection con = null;
+        PreparedStatement insertPstmt = null;
+        PreparedStatement decPstmt = null;
+        try {
+            con = DatabaseConnection.getConnection();
+            con.setAutoCommit(false); // start transaction
+
+            insertPstmt = con.prepareStatement(insertSql);
             long millis = System.currentTimeMillis();
             Date borrowDate = new Date(millis);
             Calendar cal = Calendar.getInstance();
@@ -22,46 +30,123 @@ public class LoanDAO {
             cal.add(Calendar.DAY_OF_MONTH, 14); // due in 14 days
             Date dueDate = new Date(cal.getTimeInMillis());
 
+            // prepare inserts
             for (Book b : books) {
-                pstmt.setInt(1, userId);
-                pstmt.setInt(2, b.getId());
-                pstmt.setDate(3, borrowDate);
-                pstmt.setDate(4, dueDate);
-                pstmt.addBatch();
+                insertPstmt.setInt(1, userId);
+                insertPstmt.setInt(2, b.getId());
+                insertPstmt.setDate(3, borrowDate);
+                insertPstmt.setDate(4, dueDate);
+                insertPstmt.addBatch();
             }
+            int[] insertResults = insertPstmt.executeBatch();
 
-            int[] results = pstmt.executeBatch();
-            for (int r : results) {
+            // verify inserts didn't fail
+            for (int r : insertResults) {
                 if (r == Statement.EXECUTE_FAILED) {
+                    con.rollback();
                     return false;
                 }
             }
+
+            // decrement copies for each book; if any decrement affects 0 rows -> no copies available
+            decPstmt = con.prepareStatement(decrementSql);
+            for (Book b : books) {
+                decPstmt.setInt(1, b.getId());
+                int updated = decPstmt.executeUpdate();
+                if (updated == 0) {
+                    // no available copies for this book -> rollback everything
+                    con.rollback();
+                    return false;
+                }
+            }
+
+            con.commit();
             return true;
         } catch (SQLException e) {
+            if (con != null) {
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try { if (insertPstmt != null) insertPstmt.close(); } catch (SQLException ignored) {}
+            try { if (decPstmt != null) decPstmt.close(); } catch (SQLException ignored) {}
+            try {
+                if (con != null) {
+                    con.setAutoCommit(true);
+                    con.close();
+                }
+            } catch (SQLException ignored) {}
         }
-        return false;
     }
 
-    // Update a loan as returned (keeps method but fixes column names)
+    // Update a loan as returned and increment book copies atomically
     public boolean returnBook(int loanId) {
-        String sql = "UPDATE loans SET return_date = ?, status = 'RETURNED' WHERE id = ?";
+        String selectSql = "SELECT book_id FROM loans WHERE id = ? AND status = 'BORROWED' FOR UPDATE";
+        String updateLoanSql = "UPDATE loans SET return_date = ?, status = 'RETURNED' WHERE id = ?";
+        String incrementSql = "UPDATE books SET copies_available = copies_available + 1 WHERE id = ?";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        Connection con = null;
+        PreparedStatement selStmt = null;
+        PreparedStatement updLoanStmt = null;
+        PreparedStatement incStmt = null;
+        ResultSet rs = null;
+
+        try {
+            con = DatabaseConnection.getConnection();
+            con.setAutoCommit(false);
+
+            selStmt = con.prepareStatement(selectSql);
+            selStmt.setInt(1, loanId);
+            rs = selStmt.executeQuery();
+            if (!rs.next()) {
+                // No borrowed loan found (either doesn't exist or already returned)
+                con.rollback();
+                return false;
+            }
+            int bookId = rs.getInt("book_id");
 
             long millis = System.currentTimeMillis();
             Date returnDate = new Date(millis);
 
-            pstmt.setDate(1, returnDate);
-            pstmt.setInt(2, loanId);
+            updLoanStmt = con.prepareStatement(updateLoanSql);
+            updLoanStmt.setDate(1, returnDate);
+            updLoanStmt.setInt(2, loanId);
+            int loanUpdated = updLoanStmt.executeUpdate();
+            if (loanUpdated == 0) {
+                con.rollback();
+                return false;
+            }
 
-            int rows = pstmt.executeUpdate();
-            return rows > 0;
+            incStmt = con.prepareStatement(incrementSql);
+            incStmt.setInt(1, bookId);
+            int incUpdated = incStmt.executeUpdate();
+            if (incUpdated == 0) {
+                // Failed to increment book count (shouldn't normally happen) -> rollback
+                con.rollback();
+                return false;
+            }
+
+            con.commit();
+            return true;
         } catch (SQLException e) {
+            if (con != null) {
+                try { con.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            try { if (rs != null) rs.close(); } catch (SQLException ignored) {}
+            try { if (selStmt != null) selStmt.close(); } catch (SQLException ignored) {}
+            try { if (updLoanStmt != null) updLoanStmt.close(); } catch (SQLException ignored) {}
+            try { if (incStmt != null) incStmt.close(); } catch (SQLException ignored) {}
+            try {
+                if (con != null) {
+                    con.setAutoCommit(true);
+                    con.close();
+                }
+            } catch (SQLException ignored) {}
         }
-        return false;
     }
 
     // NEW: return list of book IDs that the user already has borrowed (status = 'BORROWED')
@@ -130,5 +215,32 @@ public class LoanDAO {
             e.printStackTrace();
         }
         return books;
+    }
+
+    // NEW: return list of Loan objects for current BORROWED loans of a user
+    public List<Loan> getBorrowedLoansByUser(int userId) {
+        List<Loan> loans = new ArrayList<>();
+        String sql = "SELECT id, user_id, book_id, borrow_date, due_date, return_date, status FROM loans WHERE user_id = ? AND status = 'BORROWED'";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Loan ln = new Loan(
+                        rs.getInt("id"),
+                        rs.getInt("user_id"),
+                        rs.getInt("book_id"),
+                        rs.getDate("borrow_date"),
+                        rs.getDate("due_date"),
+                        rs.getDate("return_date"),
+                        rs.getString("status")
+                    );
+                    loans.add(ln);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return loans;
     }
 }

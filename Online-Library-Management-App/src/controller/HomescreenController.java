@@ -3,6 +3,7 @@ package controller;
 import database.LoanDAO;
 import database.BookDAO;
 import models.Book;
+import models.Loan;
 import models.User;
 import models.Role;
 import javafx.event.ActionEvent;
@@ -15,12 +16,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.scene.control.ListView;
 import javafx.geometry.Insets;
 import javafx.scene.layout.Priority;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.ButtonType;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.sql.Date;
 
 public class HomescreenController {
 
@@ -258,60 +258,120 @@ public class HomescreenController {
     }
 
     @FXML
-    private void handleViewBorrowedClicked(ActionEvent event) {
-        if (currentUser == null) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Lỗi");
-            alert.setHeaderText(null);
-            alert.setContentText("Không có người dùng hợp lệ.");
-            alert.showAndWait();
-            return;
-        }
+private void handleViewBorrowedClicked(ActionEvent event) {
+    if (currentUser == null) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Lỗi");
+        alert.setContentText("Không có người dùng hợp lệ.");
+        alert.showAndWait();
+        return;
+    }
 
-        // Fetch current borrowed books from database
-        List<Book> dbBorrowed = loanDAO.getBorrowedBooksByUser(currentUser.getId());
-        // Sync local list with DB result
-        borrowedBooks.clear();
-        borrowedBooks.addAll(dbBorrowed);
+    // 1. Fetch data
+    List<Loan> loans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
 
-        if (borrowedBooks.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Thông báo");
-            alert.setHeaderText(null);
-            alert.setContentText("Bạn chưa mượn cuốn sách nào.");
-            alert.showAndWait();
-            return;
-        }
+    if (loans.isEmpty()) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Thông báo");
+        alert.setContentText("Bạn chưa mượn cuốn sách nào.");
+        alert.showAndWait();
+        return;
+    }
 
-        Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
-        previousScene = viewBorrowedButton.getScene();
+    // 2. Setup the Layout parts
+    VBox root = new VBox(10);
+    root.setPadding(new Insets(15));
+    Label titleLbl = new Label("Sách đã mượn");
+    
+    ListView<String> listView = new ListView<>();
+    VBox.setVgrow(listView, Priority.ALWAYS);
+    
+    Button returnBtn = new Button("Return selected");
+    returnBtn.setDisable(true);
+    
+    Button backButton = new Button("Quay lại");
 
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(15));
-
-        Label title = new Label("Sách đã mượn (" + borrowedBooks.size() + ")");
-        ListView<String> listView = new ListView<>();
+    // 3. Helper function to fill the list (So we can reuse it!)
+    Runnable refreshList = () -> {
+        // Fetch fresh data
+        List<Loan> currentLoans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
         ObservableList<String> items = FXCollections.observableArrayList();
-        for (Book b : borrowedBooks) {
-            String author = "";
-            try { author = b.getAuthorName(); } catch (Exception ex) { /* fallback */ }
-            items.add(b.getTitle() + (author == null || author.isEmpty() ? "" : " - " + author));
+        
+        for (Loan ln : currentLoans) {
+            Book b = bookDAO.getBookById(ln.getBookId());
+            String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
+            Date due = ln.getDueDate();
+            items.add(title + "    Due: " + (due != null ? due.toString() : "N/A"));
         }
         listView.setItems(items);
-        VBox.setVgrow(listView, Priority.ALWAYS);
+        
+        // Update label count
+        titleLbl.setText("Sách đã mượn (" + currentLoans.size() + ")");
+        
+        // If list becomes empty after return, go back automatically? (Optional)
+        if (currentLoans.isEmpty()) {
+             backButton.fire(); // Click the back button programmatically
+        }
+    };
 
-        Button backButton = new Button("Quay lại");
-        backButton.setOnAction(e -> {
-            if (previousScene != null) {
-                stage.setScene(previousScene);
+    // Initial load
+    refreshList.run();
+
+    // 4. Listeners
+    listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldV, newV) -> {
+        returnBtn.setDisable(newV == null || newV.intValue() < 0);
+    });
+
+    // 5. Return Action
+    returnBtn.setOnAction(e -> {
+        int idx = listView.getSelectionModel().getSelectedIndex();
+        if (idx < 0) return;
+        
+        // We need to get the specific Loan ID. 
+        // WARNING: We must match the list index to the database list index.
+        List<Loan> currentLoans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
+        Loan selLoan = currentLoans.get(idx);
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Xác nhận trả sách?", ButtonType.OK, ButtonType.CANCEL);
+        Optional<ButtonType> res = confirm.showAndWait();
+        if (res.isPresent() && res.get() == ButtonType.OK) {
+
+            boolean ok = loanDAO.returnBook(selLoan.getId());
+            if (ok) {
+                // Show Success Message
+                Alert info = new Alert(Alert.AlertType.INFORMATION, "Đã trả sách thành công.", ButtonType.OK);
+                info.showAndWait();
+
+                // HERE IS THE FIX: Don't call handleViewBorrowedClicked(null). 
+                // Just run the little helper we made above.
+                refreshList.run(); 
+                returnBtn.setDisable(true); // Reset button
+            } else {
+                Alert err = new Alert(Alert.AlertType.ERROR, "Trả sách thất bại.", ButtonType.OK);
+                err.showAndWait();
             }
-        });
+        }
+    });
 
-        root.getChildren().addAll(title, listView, backButton);
+    // 6. Back Action
+    backButton.setOnAction(ev -> {
+        if (previousScene != null) {
+            // Use the button itself to find the CURRENT stage
+            Stage currentStage = (Stage) backButton.getScene().getWindow();
+            currentStage.setScene(previousScene);
+        }
+    });
 
-        Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
-        stage.setScene(borrowedScene);
-    }
+    HBox actions = new HBox(8, returnBtn, backButton);
+    root.getChildren().addAll(titleLbl, listView, actions);
+
+    // 7. Switch Scene
+    // Use viewBorrowedButton to find the stage initially
+    Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
+    previousScene = viewBorrowedButton.getScene(); // Save the Home scene
+    Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
+    stage.setScene(borrowedScene);
+}
 
     @FXML
     private void handleLogoutClicked(ActionEvent event) {
