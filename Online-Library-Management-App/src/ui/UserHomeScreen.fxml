@@ -14,7 +14,7 @@
 
 <BorderPane prefHeight="720.0" prefWidth="1280.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="controller.HomescreenController">
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="10.0">
+        <HBox fx:id="topHBox" alignment="CENTER_LEFT" spacing="10.0">
             <children>
                 <MenuBar HBox.hgrow="ALWAYS">
                     <menus>

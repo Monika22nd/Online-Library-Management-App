@@ -4,14 +4,14 @@ import database.LoanDAO;
 import database.BookDAO;
 import models.Book;
 import models.User;
+import models.Role;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -31,6 +31,7 @@ import java.util.Set;
 
 public class HomescreenController {
 
+    @FXML private HBox topHBox; // injected from FXML (new)
     @FXML private Button homeButton;    // Dùng để lấy Stage
     @FXML private Label welcomeLabel;   // Hiển thị tên User
     @FXML private Button cartButton;    // Nút giỏ hàng
@@ -58,8 +59,37 @@ public class HomescreenController {
         if (welcomeLabel != null) {
             welcomeLabel.setText("Xin chào, " + user.getName());
         }
+
+        // Add admin button dynamically if user is ADMIN
+        if (currentUser != null && currentUser.getRole() == Role.ADMIN && topHBox != null) {
+            Button adminBtn = new Button("Admin Panel");
+            adminBtn.setOnAction(e -> openAdminPanel());
+            // add before viewBorrowedButton (keep layout)
+            topHBox.getChildren().add(topHBox.getChildren().size() - 2, adminBtn);
+        }
+
         updateCartUI(); // Reset số hiển thị về 0
         loadBooks();    // Bắt đầu tải sách
+    }
+
+    private void openAdminPanel() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/AdminPanel.fxml"));
+            Parent root = loader.load();
+
+            // Pass current user to admin controller (optional)
+            controller.AdminController adminCtrl = loader.getController();
+            adminCtrl.initData(currentUser);
+
+            Stage stage = (Stage) cartButton.getScene().getWindow();
+            stage.setTitle("Admin Panel");
+            stage.setScene(new Scene(root, stage.getWidth(), stage.getHeight()));
+            stage.centerOnScreen();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            Alert err = new Alert(Alert.AlertType.ERROR, "Không thể mở Admin Panel: " + ex.getMessage(), ButtonType.OK);
+            err.showAndWait();
+        }
     }
 
     // ==========================================

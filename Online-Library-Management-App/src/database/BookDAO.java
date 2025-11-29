@@ -78,4 +78,37 @@ public class BookDAO {
         }
         return false;
     }
+
+    // NEW: update an existing book
+    public boolean updateBook(Book book) {
+        String sql = "UPDATE books SET isbn = ?, title = ?, author_id = ?, genre = ?, price = ?, copies_available = ?, description = ? WHERE id = ?";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setString(1, book.getIsbn());
+            pstmt.setString(2, book.getTitle());
+            pstmt.setObject(3, book.getAuthorId(), java.sql.Types.INTEGER); // allow null
+            pstmt.setString(4, book.getGenre());
+            pstmt.setDouble(5, book.getPrice());
+            pstmt.setInt(6, book.getCopiesAvailable());
+            pstmt.setString(7, book.getDescription());
+            pstmt.setInt(8, book.getId());
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // NEW: delete a book by id
+    public boolean deleteBook(int bookId) {
+        String sql = "DELETE FROM books WHERE id = ?";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql)) {
+            pstmt.setInt(1, bookId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }
