@@ -20,6 +20,8 @@ import javafx.geometry.Insets;
 import javafx.scene.layout.Priority;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.control.ListCell;
+import models.Author; // NEW
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -258,120 +260,173 @@ public class HomescreenController {
     }
 
     @FXML
-private void handleViewBorrowedClicked(ActionEvent event) {
-    if (currentUser == null) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Lỗi");
-        alert.setContentText("Không có người dùng hợp lệ.");
-        alert.showAndWait();
-        return;
-    }
+    private void handleViewBorrowedClicked(ActionEvent event) {
+        if (currentUser == null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Lỗi");
+            alert.setContentText("Không có người dùng hợp lệ.");
+            alert.showAndWait();
+            return;
+        }
 
-    // 1. Fetch data
-    List<Loan> loans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
+        // 1. Fetch loans
+        List<Loan> loanList = loanDAO.getBorrowedLoansByUser(currentUser.getId());
 
-    if (loans.isEmpty()) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Thông báo");
-        alert.setContentText("Bạn chưa mượn cuốn sách nào.");
-        alert.showAndWait();
-        return;
-    }
+        if (loanList.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Thông báo");
+            alert.setContentText("Bạn chưa mượn cuốn sách nào.");
+            alert.showAndWait();
+            return;
+        }
 
-    // 2. Setup the Layout parts
-    VBox root = new VBox(10);
-    root.setPadding(new Insets(15));
-    Label titleLbl = new Label("Sách đã mượn");
-    
-    ListView<String> listView = new ListView<>();
-    VBox.setVgrow(listView, Priority.ALWAYS);
-    
-    Button returnBtn = new Button("Return selected");
-    returnBtn.setDisable(true);
-    
-    Button backButton = new Button("Quay lại");
+        // 2. Build UI
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(15));
+        Label titleLbl = new Label("Sách đã mượn (" + loanList.size() + ")");
 
-    // 3. Helper function to fill the list (So we can reuse it!)
-    Runnable refreshList = () -> {
-        // Fetch fresh data
-        List<Loan> currentLoans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
-        ObservableList<String> items = FXCollections.observableArrayList();
-        
-        for (Loan ln : currentLoans) {
+        ListView<HBox> listView = new ListView<>();
+        VBox.setVgrow(listView, Priority.ALWAYS);
+
+        // populate rows: title, clickable author, due date
+        ObservableList<HBox> rows = FXCollections.observableArrayList();
+        for (Loan ln : loanList) {
             Book b = bookDAO.getBookById(ln.getBookId());
             String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
-            Date due = ln.getDueDate();
-            items.add(title + "    Due: " + (due != null ? due.toString() : "N/A"));
+            String authorName = (b != null && b.getAuthorName() != null) ? b.getAuthorName() : "";
+
+            Label titleLabel = new Label(title);
+            Hyperlink authorLink = new Hyperlink(authorName);
+            Label dueLabel = new Label(" Due: " + (ln.getDueDate() != null ? ln.getDueDate().toString() : "N/A"));
+
+            // author click -> show biography (blank if null)
+            final Book bookRef = b;
+            authorLink.setOnAction(ev -> {
+                String bio = "";
+                if (bookRef != null) {
+                    Author author = bookDAO.getAuthorById(bookRef.getAuthorId());
+                    if (author != null && author.getBiography() != null) bio = author.getBiography();
+                    // update header to author's name when available
+                    String hdr = (author != null && author.getName() != null && !author.getName().isEmpty()) ? author.getName() : (authorName == null || authorName.isEmpty() ? "Author" : authorName);
+                    Alert a = new Alert(Alert.AlertType.INFORMATION);
+                    a.setTitle("Author Biography");
+                    a.setHeaderText(hdr);
+                    a.setContentText(bio);
+                    a.showAndWait();
+                    return;
+                }
+                // fallback: show empty biography
+                Alert a = new Alert(Alert.AlertType.INFORMATION);
+                a.setTitle("Author Biography");
+                a.setHeaderText(authorName == null || authorName.isEmpty() ? "Author" : authorName);
+                a.setContentText("");
+                a.showAndWait();
+            });
+
+            HBox row = new HBox(10, titleLabel, authorLink, dueLabel);
+            rows.add(row);
         }
-        listView.setItems(items);
-        
-        // Update label count
-        titleLbl.setText("Sách đã mượn (" + currentLoans.size() + ")");
-        
-        // If list becomes empty after return, go back automatically? (Optional)
-        if (currentLoans.isEmpty()) {
-             backButton.fire(); // Click the back button programmatically
-        }
-    };
+        listView.setItems(rows);
 
-    // Initial load
-    refreshList.run();
+        // display HBox nodes properly
+        listView.setCellFactory(lv -> new ListCell<HBox>() {
+            @Override
+            protected void updateItem(HBox item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty || item == null ? null : item);
+            }
+        });
 
-    // 4. Listeners
-    listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldV, newV) -> {
-        returnBtn.setDisable(newV == null || newV.intValue() < 0);
-    });
+        // Buttons
+        Button returnBtn = new Button("Return selected");
+        returnBtn.setDisable(true);
+        Button backButton = new Button("Quay lại");
 
-    // 5. Return Action
-    returnBtn.setOnAction(e -> {
-        int idx = listView.getSelectionModel().getSelectedIndex();
-        if (idx < 0) return;
-        
-        // We need to get the specific Loan ID. 
-        // WARNING: We must match the list index to the database list index.
-        List<Loan> currentLoans = loanDAO.getBorrowedLoansByUser(currentUser.getId());
-        Loan selLoan = currentLoans.get(idx);
+        // enable return when selection exists
+        listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldV, newV) -> {
+            returnBtn.setDisable(newV == null || newV.intValue() < 0);
+        });
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Xác nhận trả sách?", ButtonType.OK, ButtonType.CANCEL);
-        Optional<ButtonType> res = confirm.showAndWait();
-        if (res.isPresent() && res.get() == ButtonType.OK) {
+        // Return action uses the loanList index mapping
+        returnBtn.setOnAction(e -> {
+            int idx = listView.getSelectionModel().getSelectedIndex();
+            if (idx < 0 || idx >= loanList.size()) return;
+            Loan selLoan = loanList.get(idx);
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Xác nhận trả sách?", ButtonType.OK, ButtonType.CANCEL);
+            Optional<ButtonType> res = confirm.showAndWait();
+            if (!(res.isPresent() && res.get() == ButtonType.OK)) return;
 
             boolean ok = loanDAO.returnBook(selLoan.getId());
             if (ok) {
-                // Show Success Message
-                Alert info = new Alert(Alert.AlertType.INFORMATION, "Đã trả sách thành công.", ButtonType.OK);
+                // show on-time/overdue info
+                Date now = new Date(System.currentTimeMillis());
+                Date due = selLoan.getDueDate();
+                String msg = (due != null && !now.after(due)) ? "Đã trả sách. Trả đúng hạn." : "Đã trả sách. Quá hạn.";
+                Alert info = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
                 info.showAndWait();
 
-                // HERE IS THE FIX: Don't call handleViewBorrowedClicked(null). 
-                // Just run the little helper we made above.
-                refreshList.run(); 
-                returnBtn.setDisable(true); // Reset button
+                // refresh loanList and UI
+                List<Loan> refreshed = loanDAO.getBorrowedLoansByUser(currentUser.getId());
+                loanList.clear();
+                loanList.addAll(refreshed);
+
+                // rebuild rows
+                ObservableList<HBox> newRows = FXCollections.observableArrayList();
+                for (Loan ln : loanList) {
+                    Book b = bookDAO.getBookById(ln.getBookId());
+                    String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
+                    String authorName = (b != null && b.getAuthorName() != null) ? b.getAuthorName() : "";
+                    Label titleLabel = new Label(title);
+                    Hyperlink authorLink = new Hyperlink(authorName);
+                    Label dueLabel = new Label(" Due: " + (ln.getDueDate() != null ? ln.getDueDate().toString() : "N/A"));
+                    final Book bookRef = b;
+                    authorLink.setOnAction(ev -> {
+                        String bio = "";
+                        if (bookRef != null) {
+                            Author author = bookDAO.getAuthorById(bookRef.getAuthorId());
+                            if (author != null && author.getBiography() != null) bio = author.getBiography();
+                            String hdr = (author != null && author.getName() != null && !author.getName().isEmpty()) ? author.getName() : (authorName == null || authorName.isEmpty() ? "Author" : authorName);
+                            Alert a = new Alert(Alert.AlertType.INFORMATION);
+                            a.setTitle("Author Biography");
+                            a.setHeaderText(hdr);
+                            a.setContentText(bio);
+                            a.showAndWait();
+                            return;
+                        }
+                        Alert a = new Alert(Alert.AlertType.INFORMATION);
+                        a.setTitle("Author Biography");
+                        a.setHeaderText(authorName == null || authorName.isEmpty() ? "Author" : authorName);
+                        a.setContentText("");
+                        a.showAndWait();
+                    });
+                    newRows.add(new HBox(10, titleLabel, authorLink, dueLabel));
+                }
+                listView.setItems(newRows);
+                titleLbl.setText("Sách đã mượn (" + loanList.size() + ")");
+                returnBtn.setDisable(true);
             } else {
                 Alert err = new Alert(Alert.AlertType.ERROR, "Trả sách thất bại.", ButtonType.OK);
                 err.showAndWait();
             }
-        }
-    });
+        });
 
-    // 6. Back Action
-    backButton.setOnAction(ev -> {
-        if (previousScene != null) {
-            // Use the button itself to find the CURRENT stage
-            Stage currentStage = (Stage) backButton.getScene().getWindow();
-            currentStage.setScene(previousScene);
-        }
-    });
+        backButton.setOnAction(ev -> {
+            if (previousScene != null) {
+                Stage currentStage = (Stage) backButton.getScene().getWindow();
+                currentStage.setScene(previousScene);
+            }
+        });
 
-    HBox actions = new HBox(8, returnBtn, backButton);
-    root.getChildren().addAll(titleLbl, listView, actions);
+        HBox actions = new HBox(8, returnBtn, backButton);
+        root.getChildren().addAll(titleLbl, listView, actions);
 
-    // 7. Switch Scene
-    // Use viewBorrowedButton to find the stage initially
-    Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
-    previousScene = viewBorrowedButton.getScene(); // Save the Home scene
-    Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
-    stage.setScene(borrowedScene);
-}
+        // show scene
+        Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
+        previousScene = viewBorrowedButton.getScene();
+        Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
+        stage.setScene(borrowedScene);
+    }
 
     @FXML
     private void handleLogoutClicked(ActionEvent event) {
