@@ -2,6 +2,7 @@ package controller;
 
 import database.LoanDAO;
 import database.BookDAO;
+import database.UserDAO; // NEW
 import models.Book;
 import models.Loan;
 import models.User;
@@ -45,6 +46,7 @@ public class HomescreenController {
 
     // --- Added search field ---
     @FXML private TextField searchField; // NEW
+    @FXML private ComboBox<String> genreCombo; // NEW
 
     private User currentUser;
     private BookDAO bookDAO = new BookDAO();
@@ -59,6 +61,9 @@ public class HomescreenController {
 
     // --- master list for searching ---
     private List<Book> masterBookList = new ArrayList<>(); // NEW
+
+    // NEW: user data access object
+    private final UserDAO userDAO = new UserDAO();
 
     // ==========================================
     // 1. KHỞI TẠO (Được gọi từ LoginController)
@@ -79,9 +84,10 @@ public class HomescreenController {
 
         updateCartUI(); // Reset số hiển thị về 0
 
-        // load data and enable search
-        loadBooksFromDatabase();   // NEW: populate masterBookList and render
-        setupSearchListener();     // NEW: bind searchField
+        // load data and enable search + genre dropdown
+        loadBooksFromDatabase();
+        setupSearchListener();
+        setupGenreCombo();
     }
 
     private void openAdminPanel() {
@@ -141,18 +147,38 @@ public class HomescreenController {
         searchField.textProperty().addListener((obs, oldText, newText) -> filterBooks(newText));
     }
 
+    // populate genre dropdown and add listener
+    private void setupGenreCombo() {
+        if (genreCombo == null) return;
+        List<String> genres = bookDAO.getAllGenres();
+        if (genres == null) genres = new ArrayList<>();
+        List<String> items = new ArrayList<>();
+        items.add("Tất cả");
+        items.addAll(genres);
+        genreCombo.setItems(FXCollections.observableArrayList(items));
+        genreCombo.getSelectionModel().selectFirst();
+        genreCombo.valueProperty().addListener((obs, oldV, newV) -> {
+            filterBooks(searchField != null ? searchField.getText() : "");
+        });
+    }
+
     private void filterBooks(String keyword) {
-        if (keyword == null || keyword.trim().isEmpty()) {
-            renderBooks(masterBookList);
-            return;
+        String kw = (keyword == null) ? "" : keyword.trim().toLowerCase();
+        String selGenre = "";
+        if (genreCombo != null && genreCombo.getValue() != null && !"Tất cả".equals(genreCombo.getValue())) {
+            selGenre = genreCombo.getValue().toLowerCase();
         }
-        final String lower = keyword.toLowerCase();
+
+        final String lower = kw;
+        final String genreFilter = selGenre;
         List<Book> filtered = masterBookList.stream()
                 .filter(b -> {
                     String title = b.getTitle() == null ? "" : b.getTitle().toLowerCase();
                     String author = b.getAuthorName() == null ? "" : b.getAuthorName().toLowerCase();
                     String genre = b.getGenre() == null ? "" : b.getGenre().toLowerCase();
-                    return title.contains(lower) || author.contains(lower) || genre.contains(lower);
+                    boolean txtMatch = lower.isEmpty() || title.contains(lower) || author.contains(lower) || genre.contains(lower);
+                    boolean genreMatch = genreFilter.isEmpty() || genre.equals(genreFilter);
+                    return txtMatch && genreMatch;
                 })
                 .collect(Collectors.toList());
         renderBooks(filtered);
@@ -177,6 +203,54 @@ public class HomescreenController {
         if (cartButton != null) {
             cartButton.setText("Giỏ mượn (" + cart.size() + ")");
         }
+    }
+
+    // --- New: update user profile from Menu item ---
+    @FXML
+    private void handleUpdateProfileClicked(javafx.event.ActionEvent event) {
+        if (currentUser == null) {
+            Alert a = new Alert(Alert.AlertType.ERROR, "Không có người dùng hợp lệ.", ButtonType.OK);
+            a.showAndWait();
+            return;
+        }
+
+        Dialog<User> dialog = new Dialog<>();
+        dialog.setTitle("Cập nhật hồ sơ");
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        grid.setHgap(10); grid.setVgap(10);
+        TextField nameF = new TextField(currentUser.getName());
+        TextField userF = new TextField(currentUser.getUsername()); userF.setDisable(true);
+        PasswordField passF = new PasswordField(); passF.setText(currentUser.getPassword());
+        TextField emailF = new TextField(currentUser.getEmail());
+        TextField phoneF = new TextField(currentUser.getPhone());
+        // optional: let user choose preferred genre (not persisted unless User/DB supports it)
+        ComboBox<String> prefGenre = new ComboBox<>();
+        if (genreCombo != null && genreCombo.getItems() != null) prefGenre.setItems(genreCombo.getItems());
+        prefGenre.getSelectionModel().selectFirst();
+
+        grid.addRow(0, new Label("Name:"), nameF);
+        grid.addRow(1, new Label("User:"), userF);
+        grid.addRow(2, new Label("Pass:"), passF);
+        grid.addRow(3, new Label("Email:"), emailF);
+        grid.addRow(4, new Label("Phone:"), phoneF);
+        grid.addRow(5, new Label("Favorite genre:"), prefGenre);
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(bt -> bt == ButtonType.OK ? new User(currentUser.getId(), nameF.getText(), userF.getText(), passF.getText(), emailF.getText(), phoneF.getText(), currentUser.getRole()) : null);
+
+        dialog.showAndWait().ifPresent(updated -> {
+            if (userDAO.updateUser(updated)) {
+                currentUser = updated;
+                if (welcomeLabel != null) welcomeLabel.setText("Xin chào, " + currentUser.getName());
+                Alert ok = new Alert(Alert.AlertType.INFORMATION, "Cập nhật thành công.", ButtonType.OK);
+                ok.showAndWait();
+            } else {
+                Alert err = new Alert(Alert.AlertType.ERROR, "Cập nhật thất bại.", ButtonType.OK);
+                err.showAndWait();
+            }
+        });
     }
 
     // ==========================================
@@ -289,171 +363,36 @@ public class HomescreenController {
 
     @FXML
     private void handleViewBorrowedClicked(ActionEvent event) {
-        if (currentUser == null) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Lỗi");
-            alert.setContentText("Không có người dùng hợp lệ.");
-            alert.showAndWait();
+        // Save current scene so BorrowedBooksController can go back
+        if (viewBorrowedButton == null || cartButton == null) {
+            // fallback: show error
+            Alert a = new Alert(Alert.AlertType.ERROR, "Không thể mở màn hình sách đã mượn.", ButtonType.OK);
+            a.showAndWait();
             return;
         }
 
-        // 1. Fetch loans
-        List<Loan> loanList = loanDAO.getBorrowedLoansByUser(currentUser.getId());
+        try {
+            // store previous scene
+            previousScene = viewBorrowedButton.getScene();
 
-        if (loanList.isEmpty()) {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Thông báo");
-            alert.setContentText("Bạn chưa mượn cuốn sách nào.");
-            alert.showAndWait();
-            return;
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ui/BorrowedBooks.fxml"));
+            Parent root = loader.load();
+
+            // initialize controller with current user and previous scene
+            Object ctrl = loader.getController();
+            if (ctrl instanceof BorrowedBooksController) {
+                ((BorrowedBooksController) ctrl).initData(currentUser, previousScene);
+            }
+
+            Stage stage = (Stage) cartButton.getScene().getWindow();
+            stage.setTitle("Sách đã mượn");
+            stage.setScene(new Scene(root, stage.getWidth(), stage.getHeight()));
+            stage.centerOnScreen();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            Alert err = new Alert(Alert.AlertType.ERROR, "Không thể mở màn hình sách đã mượn: " + ex.getMessage(), ButtonType.OK);
+            err.showAndWait();
         }
-
-        // 2. Build UI
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(15));
-        Label titleLbl = new Label("Sách đã mượn (" + loanList.size() + ")");
-
-        ListView<HBox> listView = new ListView<>();
-        VBox.setVgrow(listView, Priority.ALWAYS);
-
-        // populate rows: title, clickable author, due date
-        ObservableList<HBox> rows = FXCollections.observableArrayList();
-        for (Loan ln : loanList) {
-            Book b = bookDAO.getBookById(ln.getBookId());
-            String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
-            String authorName = (b != null && b.getAuthorName() != null) ? b.getAuthorName() : "";
-
-            Label titleLabel = new Label(title);
-            Hyperlink authorLink = new Hyperlink(authorName);
-            Label dueLabel = new Label(" Due: " + (ln.getDueDate() != null ? ln.getDueDate().toString() : "N/A"));
-
-            // author click -> show biography (blank if null)
-            final Book bookRef = b;
-            authorLink.setOnAction(ev -> {
-                String bio = "";
-                if (bookRef != null) {
-                    Author author = bookDAO.getAuthorById(bookRef.getAuthorId());
-                    if (author != null && author.getBiography() != null) bio = author.getBiography();
-                    // update header to author's name when available
-                    String hdr = (author != null && author.getName() != null && !author.getName().isEmpty()) ? author.getName() : (authorName == null || authorName.isEmpty() ? "Author" : authorName);
-                    Alert a = new Alert(Alert.AlertType.INFORMATION);
-                    a.setTitle("Author Biography");
-                    a.setHeaderText(hdr);
-                    a.setContentText(bio);
-                    a.showAndWait();
-                    return;
-                }
-                // fallback: show empty biography
-                Alert a = new Alert(Alert.AlertType.INFORMATION);
-                a.setTitle("Author Biography");
-                a.setHeaderText(authorName == null || authorName.isEmpty() ? "Author" : authorName);
-                a.setContentText("");
-                a.showAndWait();
-            });
-
-            HBox row = new HBox(10, titleLabel, authorLink, dueLabel);
-            rows.add(row);
-        }
-        listView.setItems(rows);
-
-        // display HBox nodes properly
-        listView.setCellFactory(lv -> new ListCell<HBox>() {
-            @Override
-            protected void updateItem(HBox item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty || item == null ? null : item);
-            }
-        });
-
-        // Buttons
-        Button returnBtn = new Button("Return selected");
-        returnBtn.setDisable(true);
-        Button backButton = new Button("Quay lại");
-
-        // enable return when selection exists
-        listView.getSelectionModel().selectedIndexProperty().addListener((obs, oldV, newV) -> {
-            returnBtn.setDisable(newV == null || newV.intValue() < 0);
-        });
-
-        // Return action uses the loanList index mapping
-        returnBtn.setOnAction(e -> {
-            int idx = listView.getSelectionModel().getSelectedIndex();
-            if (idx < 0 || idx >= loanList.size()) return;
-            Loan selLoan = loanList.get(idx);
-
-            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Xác nhận trả sách?", ButtonType.OK, ButtonType.CANCEL);
-            Optional<ButtonType> res = confirm.showAndWait();
-            if (!(res.isPresent() && res.get() == ButtonType.OK)) return;
-
-            boolean ok = loanDAO.returnBook(selLoan.getId());
-            if (ok) {
-                // show on-time/overdue info
-                Date now = new Date(System.currentTimeMillis());
-                Date due = selLoan.getDueDate();
-                String msg = (due != null && !now.after(due)) ? "Đã trả sách. Trả đúng hạn." : "Đã trả sách. Quá hạn.";
-                Alert info = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
-                info.showAndWait();
-
-                // refresh loanList and UI
-                List<Loan> refreshed = loanDAO.getBorrowedLoansByUser(currentUser.getId());
-                loanList.clear();
-                loanList.addAll(refreshed);
-
-                // rebuild rows
-                ObservableList<HBox> newRows = FXCollections.observableArrayList();
-                for (Loan ln : loanList) {
-                    Book b = bookDAO.getBookById(ln.getBookId());
-                    String title = b != null ? b.getTitle() : ("Book ID " + ln.getBookId());
-                    String authorName = (b != null && b.getAuthorName() != null) ? b.getAuthorName() : "";
-                    Label titleLabel = new Label(title);
-                    Hyperlink authorLink = new Hyperlink(authorName);
-                    Label dueLabel = new Label(" Due: " + (ln.getDueDate() != null ? ln.getDueDate().toString() : "N/A"));
-                    final Book bookRef = b;
-                    authorLink.setOnAction(ev -> {
-                        String bio = "";
-                        if (bookRef != null) {
-                            Author author = bookDAO.getAuthorById(bookRef.getAuthorId());
-                            if (author != null && author.getBiography() != null) bio = author.getBiography();
-                            String hdr = (author != null && author.getName() != null && !author.getName().isEmpty()) ? author.getName() : (authorName == null || authorName.isEmpty() ? "Author" : authorName);
-                            Alert a = new Alert(Alert.AlertType.INFORMATION);
-                            a.setTitle("Author Biography");
-                            a.setHeaderText(hdr);
-                            a.setContentText(bio);
-                            a.showAndWait();
-                            return;
-                        }
-                        Alert a = new Alert(Alert.AlertType.INFORMATION);
-                        a.setTitle("Author Biography");
-                        a.setHeaderText(authorName == null || authorName.isEmpty() ? "Author" : authorName);
-                        a.setContentText("");
-                        a.showAndWait();
-                    });
-                    newRows.add(new HBox(10, titleLabel, authorLink, dueLabel));
-                }
-                listView.setItems(newRows);
-                titleLbl.setText("Sách đã mượn (" + loanList.size() + ")");
-                returnBtn.setDisable(true);
-            } else {
-                Alert err = new Alert(Alert.AlertType.ERROR, "Trả sách thất bại.", ButtonType.OK);
-                err.showAndWait();
-            }
-        });
-
-        backButton.setOnAction(ev -> {
-            if (previousScene != null) {
-                Stage currentStage = (Stage) backButton.getScene().getWindow();
-                currentStage.setScene(previousScene);
-            }
-        });
-
-        HBox actions = new HBox(8, returnBtn, backButton);
-        root.getChildren().addAll(titleLbl, listView, actions);
-
-        // show scene
-        Stage stage = (Stage) viewBorrowedButton.getScene().getWindow();
-        previousScene = viewBorrowedButton.getScene();
-        Scene borrowedScene = new Scene(root, stage.getWidth(), stage.getHeight());
-        stage.setScene(borrowedScene);
     }
 
     @FXML

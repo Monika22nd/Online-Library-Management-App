@@ -2,6 +2,7 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
@@ -22,6 +23,7 @@
                         <Menu text="Hệ thống">
                             <items>
                                 <MenuItem onAction="#handleLogoutClicked" text="Đăng xuất" />
+                                <MenuItem onAction="#handleUpdateProfileClicked" text="Cập nhật hồ sơ" />
                             </items>
                         </Menu>
                     </menus>
@@ -30,8 +32,9 @@
                 <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;" text="Xin chào User" />
                 <Region HBox.hgrow="ALWAYS" />
 
-                <!-- Added search field -->
-                <TextField fx:id="searchField" promptText="Tìm kiếm theo tên, tác giả hoặc thể loại..." prefWidth="320.0" />
+                <!-- Search field and genre dropdown -->
+                <TextField fx:id="searchField" promptText="Tìm kiếm..." prefWidth="240.0" />
+                <ComboBox fx:id="genreCombo" promptText="Thể loại" prefWidth="160.0" />
 
                 <Button fx:id="viewBorrowedButton" onAction="#handleViewBorrowedClicked" text="Sách đã mượn" />
                 <Button fx:id="cartButton" onAction="#handleCartClicked" text="Giỏ mượn (0)" />

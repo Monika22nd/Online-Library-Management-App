@@ -204,4 +204,21 @@ public class BookDAO {
 	    Author a = getAuthorById(authorId);
 	    return a != null ? a.getBiography() : null;
 	}
+
+    // NEW: return distinct genres from books table (used to populate genre dropdown)
+    public List<String> getAllGenres() {
+        List<String> genres = new ArrayList<>();
+        String sql = "SELECT DISTINCT genre FROM books WHERE genre IS NOT NULL AND TRIM(genre) <> '' ORDER BY genre";
+        try (Connection con = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = con.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String g = rs.getString("genre");
+                if (g != null && !g.trim().isEmpty()) genres.add(g);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return genres;
+    }
 }
