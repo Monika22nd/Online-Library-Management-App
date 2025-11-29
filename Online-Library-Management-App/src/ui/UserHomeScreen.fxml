@@ -7,6 +7,7 @@
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
@@ -28,6 +29,10 @@
 
                 <Label fx:id="welcomeLabel" style="-fx-font-weight: bold;" text="Xin chào User" />
                 <Region HBox.hgrow="ALWAYS" />
+
+                <!-- Added search field -->
+                <TextField fx:id="searchField" promptText="Tìm kiếm theo tên, tác giả hoặc thể loại..." prefWidth="320.0" />
+
                 <Button fx:id="viewBorrowedButton" onAction="#handleViewBorrowedClicked" text="Sách đã mượn" />
                 <Button fx:id="cartButton" onAction="#handleCartClicked" text="Giỏ mượn (0)" />
             </children>

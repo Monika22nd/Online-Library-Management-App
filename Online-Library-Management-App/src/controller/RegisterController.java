@@ -21,37 +21,46 @@ public class RegisterController {
 
     @FXML
     protected void handleRegisterButton(ActionEvent event){
-        String name = nameRegisterField.getText();
-        String username = usernameRegisterField.getText();
-        String password = passwordRegisterField.getText();
-        String confirmPassword = confirmPasswordField.getText();
-        String email = emailRegisterField.getText();
-        String phone = phoneRegisterField.getText();
+        String name = nameRegisterField.getText() == null ? "" : nameRegisterField.getText().trim();
+        String username = usernameRegisterField.getText() == null ? "" : usernameRegisterField.getText().trim();
+        String password = passwordRegisterField.getText() == null ? "" : passwordRegisterField.getText();
+        String confirmPassword = confirmPasswordField.getText() == null ? "" : confirmPasswordField.getText();
+        String email = emailRegisterField.getText() == null ? "" : emailRegisterField.getText().trim();
+        String phone = phoneRegisterField.getText() == null ? "" : phoneRegisterField.getText().trim();
 
         if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            showAlert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Vui lòng nhập đầy đủ thông tin (name, username, password).");
             return;
         }
 
         if (!password.equals(confirmPassword)) {
-            showAlert("Lỗi", "Mật khẩu không trùng khớp.");
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Mật khẩu không trùng khớp.");
+            return;
+        }
+
+        // Check if user (username/email/phone) already exists BEFORE attempting to register
+        if (userDAO.isUserExists(username, email, phone)) {
+            showAlert(Alert.AlertType.ERROR, "Thất bại", "Tên đăng nhập, email hoặc số điện thoại đã được sử dụng.");
             return;
         }
 
         // Tạo user mới (include email and phone)
         User newUser = new User(name, username, password, email, phone, Role.CLIENT);
 
-        if (userDAO.registerUser(newUser) && !userDAO.isUserExists(newUser.getUsername(), newUser.getEmail(), newUser.getPhone())) {
-            showAlert("Thành công", "Đăng ký thành công! Vui lòng đăng nhập.");
+        // Attempt to persist the new user
+        boolean created = userDAO.registerUser(newUser);
+        if (created) {
+            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đăng ký thành công! Vui lòng đăng nhập.");
             Stage stage = (Stage) registerButton.getScene().getWindow();
             stage.close();
         } else {
-            showAlert("Thất bại", "Tên đăng nhập, email hoặc số điện thoại đã được sử dụng.");
+            showAlert(Alert.AlertType.ERROR, "Thất bại", "Đăng ký thất bại. Vui lòng thử lại.");
         }
     }
 
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    // Replace with helper that accepts AlertType so callers can show error/info appropriately
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);

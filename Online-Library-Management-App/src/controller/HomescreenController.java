@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.sql.Date;
+import java.util.stream.Collectors; // NEW
 
 public class HomescreenController {
 
@@ -42,6 +43,9 @@ public class HomescreenController {
     // Container chứa danh sách sách (Quan trọng: Cần fx:id trong UserHomeScreen.fxml)
     @FXML private TilePane bookContainer;
 
+    // --- Added search field ---
+    @FXML private TextField searchField; // NEW
+
     private User currentUser;
     private BookDAO bookDAO = new BookDAO();
     private LoanDAO loanDAO = new LoanDAO(); // persist loans and query existing
@@ -52,6 +56,9 @@ public class HomescreenController {
 
     // Store previous scene so we can go back
     private Scene previousScene;
+
+    // --- master list for searching ---
+    private List<Book> masterBookList = new ArrayList<>(); // NEW
 
     // ==========================================
     // 1. KHỞI TẠO (Được gọi từ LoginController)
@@ -71,7 +78,10 @@ public class HomescreenController {
         }
 
         updateCartUI(); // Reset số hiển thị về 0
-        loadBooks();    // Bắt đầu tải sách
+
+        // load data and enable search
+        loadBooksFromDatabase();   // NEW: populate masterBookList and render
+        setupSearchListener();     // NEW: bind searchField
     }
 
     private void openAdminPanel() {
@@ -97,23 +107,20 @@ public class HomescreenController {
     // ==========================================
     // 2. LOAD SÁCH (Sử dụng BookCard.fxml)
     // ==========================================
-    private void loadBooks() {
-        System.out.println("--> Bắt đầu tải sách..."); // Debug 1
+    // Replaced original direct-loading behavior with master list + render function
+    private void loadBooksFromDatabase() {
+        masterBookList = bookDAO.getAllBooks();
+        renderBooks(masterBookList);
+    }
 
-        if (bookContainer == null) {
-            System.err.println("LỖI: bookContainer bị NULL! Kiểm tra lại fx:id trong FXML.");
-            return;
-        }
+    // Render a list of books into the TilePane (re-uses BookCard.fxml)
+    private void renderBooks(List<Book> books) {
+        if (bookContainer == null) return;
 
         bookContainer.getChildren().clear();
-        List<Book> books = bookDAO.getAllBooks();
-
-        System.out.println("--> Found " + books.size() + " books in Database."); // Debug 2
 
         try {
             for (Book book : books) {
-                System.out.println("--> Đang tạo thẻ cho sách: " + book.getTitle()); // Debug 3
-
                 FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/ui/BookCard.fxml"));
                 VBox cardBox = fxmlLoader.load();
 
@@ -124,14 +131,36 @@ public class HomescreenController {
             }
         } catch (IOException e) {
             e.printStackTrace();
-            System.err.println("LỖI: Không tìm thấy file BookCard.fxml hoặc lỗi load file.");
+            System.err.println("LỖI: Không thể load BookCard.fxml");
         }
+    }
+
+    // Setup listener to filter books on each keystroke
+    private void setupSearchListener() {
+        if (searchField == null) return;
+        searchField.textProperty().addListener((obs, oldText, newText) -> filterBooks(newText));
+    }
+
+    private void filterBooks(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            renderBooks(masterBookList);
+            return;
+        }
+        final String lower = keyword.toLowerCase();
+        List<Book> filtered = masterBookList.stream()
+                .filter(b -> {
+                    String title = b.getTitle() == null ? "" : b.getTitle().toLowerCase();
+                    String author = b.getAuthorName() == null ? "" : b.getAuthorName().toLowerCase();
+                    String genre = b.getGenre() == null ? "" : b.getGenre().toLowerCase();
+                    return title.contains(lower) || author.contains(lower) || genre.contains(lower);
+                })
+                .collect(Collectors.toList());
+        renderBooks(filtered);
     }
 
     // ==========================================
     // 3. LOGIC GIỎ HÀNG (Được BookCard gọi về)
     // ==========================================
-
     public void addToCart(Book book) {
         if (!cart.contains(book)) {
             cart.add(book);
@@ -153,7 +182,6 @@ public class HomescreenController {
     // ==========================================
     // 4. CÁC SỰ KIỆN KHÁC
     // ==========================================
-
     @FXML
     private void handleCartClicked(ActionEvent event) {
         if (cart.isEmpty()) {
