@@ -11,6 +11,9 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
+import database.LoanDAO;
+import models.Loan;
+import java.sql.Date;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,7 +22,9 @@ public class AdminController {
 
     @FXML private TableView<User> userTable;
     @FXML private TableView<Book> bookTable;
+    @FXML private TableView<Loan> loanTable;
 
+    private LoanDAO loanDAO = new LoanDAO();
     private UserDAO userDAO = new UserDAO();
     private BookDAO bookDAO = new BookDAO();
 
@@ -29,6 +34,7 @@ public class AdminController {
         this.currentAdmin = admin;
         loadUsers();
         loadBooks();
+        loadLoans();
     }
 
     private void loadUsers() {
@@ -214,6 +220,8 @@ public class AdminController {
         TextField genreField = new TextField();
         TextField priceField = new TextField();
         TextField copiesField = new TextField();
+        TextField imagePathField = new TextField();
+        imagePathField.setPromptText("/img/ten_anh.jpg");
         TextArea descField = new TextArea();
         descField.setPrefRowCount(3);
 
@@ -225,6 +233,7 @@ public class AdminController {
             genreField.setText(existing.getGenre());
             priceField.setText(String.valueOf(existing.getPrice()));
             copiesField.setText(String.valueOf(existing.getCopiesAvailable()));
+            imagePathField.setText(existing.getImagePath()); // <-- Load đường dẫn cũ
             descField.setText(existing.getDescription());
         }
 
@@ -235,7 +244,8 @@ public class AdminController {
         grid.addRow(4, new Label("Genre:"), genreField);
         grid.addRow(5, new Label("Price:"), priceField);
         grid.addRow(6, new Label("Copies:"), copiesField);
-        grid.addRow(7, new Label("Description:"), descField);
+        grid.addRow(7, new Label("Image Path:"), imagePathField);
+        grid.addRow(8, new Label("Description:"), descField);
 
         dialog.getDialogPane().setContent(grid);
         dialog.setResultConverter(bt -> {
@@ -247,10 +257,12 @@ public class AdminController {
                 int copies = 0;
                 try { copies = Integer.parseInt(copiesField.getText().trim()); } catch (Exception ex) { copies = 0; }
 
+                String imgPath = imagePathField.getText().trim();
+
                 if (existing != null) {
-                    return new Book(existing.getId(), isbnField.getText(), titleField.getText(), authorId, authorNameField.getText(), genreField.getText(), price, copies, descField.getText());
+                    return new Book(existing.getId(), isbnField.getText(), titleField.getText(), authorId, authorNameField.getText(), genreField.getText(), price, copies, descField.getText(), imgPath);
                 } else {
-                    return new Book(0, isbnField.getText(), titleField.getText(), authorId, authorNameField.getText(), genreField.getText(), price, copies, descField.getText());
+                    return new Book(0, isbnField.getText(), titleField.getText(), authorId, authorNameField.getText(), genreField.getText(), price, copies, descField.getText(), imgPath);
                 }
             }
             return null;
@@ -282,5 +294,40 @@ public class AdminController {
         a.setTitle(title);
         a.setHeaderText(null);
         a.showAndWait();
+    }
+    @FXML
+    private void handleRefreshLoans() {
+        loadLoans();
+    }
+
+    private void loadLoans() {
+        List<Loan> loans = loanDAO.getAllLoans(); // Hàm này bạn đã thêm ở Bước 2
+        ObservableList<Loan> obs = FXCollections.observableArrayList(loans);
+        loanTable.setItems(obs);
+
+        // Tạo cột nếu chưa có (Chỉ chạy lần đầu)
+        if (loanTable.getColumns().isEmpty()) {
+            TableColumn<Loan, Integer> idCol = new TableColumn<>("ID");
+            idCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("id"));
+
+            // Cột User (Tên người mượn)
+            TableColumn<Loan, String> userCol = new TableColumn<>("Người mượn");
+            userCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("userName"));
+
+            // Cột Book (Tên sách)
+            TableColumn<Loan, String> bookCol = new TableColumn<>("Sách");
+            bookCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("bookTitle"));
+
+            TableColumn<Loan, Date> borrowCol = new TableColumn<>("Ngày mượn");
+            borrowCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("borrowDate"));
+
+            TableColumn<Loan, Date> dueCol = new TableColumn<>("Hạn trả");
+            dueCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("dueDate"));
+
+            TableColumn<Loan, String> statusCol = new TableColumn<>("Trạng thái");
+            statusCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("status"));
+
+            loanTable.getColumns().addAll(idCol, userCol, bookCol, borrowCol, dueCol, statusCol);
+        }
     }
 }

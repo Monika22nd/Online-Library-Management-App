@@ -12,10 +12,11 @@ public class Book {
     private double price;
     private int copiesAvailable;
     private String description;
+    private String imagePath;
 
 
     public Book(int id, String isbn, String title, int authorId, String authorName,
-                String genre, double price, int copiesAvailable, String description) {
+                String genre, double price, int copiesAvailable, String description, String imagePath) {
         this.id = id;
         this.isbn = isbn;
         this.title = title;
@@ -25,6 +26,12 @@ public class Book {
         this.price = price;
         this.copiesAvailable = copiesAvailable;
         this.description = description;
+        this.imagePath = imagePath;
+    }
+
+    public Book(int id, String isbn, String title, int authorId, String authorName,
+                String genre, double price, int copiesAvailable, String description) {
+        this(id, isbn, title, authorId, authorName, genre, price, copiesAvailable, description, null);
     }
 
     public int getId() { return id; }
@@ -44,7 +51,7 @@ public class Book {
     public double getPrice() { return price; }
     public int getCopiesAvailable() { return copiesAvailable; }
     public String getDescription() { return description; }
-
+    public String getImagePath() { return imagePath; }
 
     public boolean isAvailable() {
         return copiesAvailable > 0;

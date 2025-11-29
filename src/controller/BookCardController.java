@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import java.io.InputStream;
 
 public class BookCardController {
     @FXML private ImageView bookImage;
@@ -14,9 +15,8 @@ public class BookCardController {
     @FXML private CheckBox selectCheckbox;
 
     private Book book;
-    private HomescreenController mainController; // Để gọi ngược lại khi cần (ví dụ update giỏ hàng)
+    private HomescreenController mainController;
 
-    // Hàm này được gọi từ HomescreenController để điền dữ liệu
     public void setData(Book book, HomescreenController mainController) {
         this.book = book;
         this.mainController = mainController;
@@ -24,8 +24,8 @@ public class BookCardController {
         bookTitle.setText(book.getTitle());
         bookAuthor.setText(book.getAuthorName());
 
-        // Load ảnh (nếu chưa có ảnh thật thì dùng ảnh mặc định)
-        // bookImage.setImage(new Image(getClass().getResourceAsStream("/img/book_placeholder.png")));
+        // --- XỬ LÝ ẢNH CHUẨN ---
+        loadImageSafe(book.getImagePath());
 
         // Xử lý nút tác giả
         bookAuthor.setOnAction(e -> {
@@ -41,6 +41,60 @@ public class BookCardController {
         }
     }
 
+    private void loadImageSafe(String path) {
+        Image image = null;
+        try {
+            // 1. Nếu path rỗng hoặc null -> Dùng ảnh placeholder
+            if (path == null || path.trim().isEmpty()) {
+                loadPlaceholder();
+                return;
+            }
+
+            // 2. Nếu là đường dẫn file tuyệt đối (ổ đĩa) hoặc URL (http)
+            if (path.startsWith("file:") || path.startsWith("http")) {
+                image = new Image(path, true); // true = load background (không treo UI)
+            }
+            // 3. Nếu là đường dẫn trong Resources (bắt đầu bằng /)
+            else {
+                InputStream is = getClass().getResourceAsStream(path);
+                if (is != null) {
+                    image = new Image(is);
+                } else {
+                    // Không tìm thấy file trong resource
+                    System.err.println("Không tìm thấy ảnh resource: " + path);
+                    loadPlaceholder();
+                    return;
+                }
+            }
+
+            // Set ảnh vào ImageView
+            if (image != null) {
+                // Xử lý khi ảnh load lỗi (ví dụ link chết)
+                image.errorProperty().addListener((obs, oldV, newV) -> {
+                    if (newV) loadPlaceholder();
+                });
+                bookImage.setImage(image);
+            } else {
+                loadPlaceholder();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            loadPlaceholder();
+        }
+    }
+
+    private void loadPlaceholder() {
+        try {
+            // Đảm bảo bạn đã có file book_placeholder.png trong /src/main/resources/img/
+            bookImage.setImage(new Image(getClass().getResourceAsStream("/img/placeholder.png")));
+        } catch (Exception e) {
+            // Trường hợp xấu nhất: không có cả ảnh placeholder
+            System.err.println("Thiếu ảnh placeholder!");
+        }
+    }
+
+    // ... Giữ nguyên các hàm handleDetails, handleSelect
     @FXML
     private void handleDetails(ActionEvent event) {
         Alert info = new Alert(Alert.AlertType.INFORMATION);
@@ -57,7 +111,6 @@ public class BookCardController {
 
     @FXML
     private void handleSelect(ActionEvent event) {
-        // Gọi sang HomescreenController để thêm/xóa khỏi giỏ
         if (selectCheckbox.isSelected()) {
             mainController.addToCart(book);
         } else {
