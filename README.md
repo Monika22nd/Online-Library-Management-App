@@ -19,7 +19,7 @@ Các chức năng chính:
 - Đăng ký tài khoản
 - Mượn sách, trả sách, xem thông tin sách.
 - Xem lịch sử mượn.
-- Xem dach sách những cuốn sách đã mượn.
+- Xem danh sách những cuốn sách đã mượn.
 - Đặt mượn trước để có thể đến thư viện và xác nhận.
 - Tìm kiếm sách theo tên.
 - Hiển thị sách theo thể loại.
