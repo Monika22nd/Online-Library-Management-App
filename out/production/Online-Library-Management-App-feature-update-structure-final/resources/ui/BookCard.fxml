@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="CENTER" prefHeight="220.0" prefWidth="160.0" spacing="5.0"
+      style="-fx-border-color: #cccccc; -fx-background-color: white; -fx-padding: 10; -fx-border-radius: 5;"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="Java.controller.BookCardController">
+    <children>
+        <ImageView fx:id="bookImage" fitHeight="100.0" fitWidth="80.0" pickOnBounds="true" preserveRatio="true" />
+        <Label fx:id="bookTitle" style="-fx-font-weight: bold;" text="Tên sách" wrapText="true" />
+        <Hyperlink fx:id="bookAuthor" text="Tác giả" />
+        <Button mnemonicParsing="false" onAction="#handleDetails" text="Chi tiết" />
+        <CheckBox fx:id="selectCheckbox" mnemonicParsing="false" onAction="#handleSelect" text="Chọn mượn" />
+    </children>
+</VBox>
