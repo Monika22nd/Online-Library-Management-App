@@ -1,0 +1,13 @@
+========== PHIẾU MƯỢN SÁCH ==========
+Thư viện: Java Library System
+Khách hàng: Tran Thi B (SĐT: 0900000003)
+Ngày lập: 30/11/2025 16:03:22
+-------------------------------------
+DANH SÁCH SÁCH MƯỢN:
+1. Doraemon - Tập 1 - Fujiko F. Fujio
+2. Doraemon Truyện dài: Nobita và hành tinh muông thú - Fujiko F. Fujio
+3. Mười người da đen nhỏ - Agatha Christie
+-------------------------------------
+Hạn trả: 14 ngày kể từ ngày mượn.
+Vui lòng trả sách đúng hạn để tránh phạt.
+=====================================

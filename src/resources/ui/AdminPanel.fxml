@@ -8,6 +8,7 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
@@ -72,7 +73,7 @@
                     </content>
                 </Tab>
 
-                <!-- TAB 3: LOANS (MỚI) -->
+                <!-- TAB 3: LOANS (CẬP NHẬT MỚI) -->
                 <Tab text="Quản lý Vé Mượn (Loans)">
                     <content>
                         <VBox spacing="10.0">
@@ -81,8 +82,17 @@
                             </padding>
                             <children>
                                 <TableView fx:id="loanTable" VBox.vgrow="ALWAYS" />
-                                <HBox spacing="10.0">
+
+                                <!-- Thanh công cụ xử lý mượn trả -->
+                                <HBox alignment="CENTER_LEFT" spacing="10.0">
                                     <children>
+                                        <Button mnemonicParsing="false" onAction="#handleApproveLoan" style="-fx-base: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;" text="✅ Duyệt mượn" />
+                                        <Button mnemonicParsing="false" onAction="#handleRejectLoan" style="-fx-base: #F44336; -fx-text-fill: white;" text="❌ Từ chối" />
+                                        <Button mnemonicParsing="false" onAction="#handleReturnBook" style="-fx-base: #2196F3; -fx-text-fill: white;" text="🔄 Xác nhận Trả" />
+
+                                        <!-- Spacer để đẩy nút Refresh sang phải -->
+                                        <Region HBox.hgrow="ALWAYS" />
+
                                         <Button mnemonicParsing="false" onAction="#handleRefreshLoans" text="Làm mới danh sách" />
                                     </children>
                                 </HBox>

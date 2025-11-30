@@ -229,19 +229,20 @@ public class HomescreenController {
             return;
         }
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Mượn " + validBooks.size() + " cuốn sách?");
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Gửi yêu cầu mượn " + validBooks.size() + " cuốn sách cho Admin?");
         if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            boolean success = loanDAO.addLoans(currentUser.getId(), validBooks);
+            // GỌI HÀM REQUEST THAY VÌ ADD
+            boolean success = loanDAO.requestLoans(currentUser.getId(), validBooks);
             if (success) {
-                // GỌI HÀM XUẤT PHIẾU
+                // Xuất phiếu (Phiếu này là phiếu YÊU CẦU)
                 exportLoanReceipt(currentUser, validBooks);
 
-                new Alert(Alert.AlertType.INFORMATION, "Mượn thành công! Đã xuất phiếu mượn ra file.").showAndWait();
+                new Alert(Alert.AlertType.INFORMATION, "Đã gửi yêu cầu! Vui lòng chờ Admin duyệt.\nTrạng thái: PENDING").showAndWait();
                 cart.clear();
                 updateCartUI();
-                loadBooksFromDatabase();
+                // Không cần loadBooksFromDatabase() vì chưa trừ kho
             } else {
-                new Alert(Alert.AlertType.ERROR, "Lỗi khi mượn.").showAndWait();
+                new Alert(Alert.AlertType.ERROR, "Lỗi khi gửi yêu cầu.").showAndWait();
             }
         }
     }
