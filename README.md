@@ -47,8 +47,9 @@ Trong tab Run của thanh công cụ trên cùng, chọn Add Configuration và d
 ```JSON
 {"version":"0.2.0","configurations":[
     
-    {"type":"java","name":"Launch Main","request":"launch","mainClass":"Main","vmArgs":["--module-path","C:\path\to\javafx-sdk-21\lib","--add-modules","javafx.controls,javafx.fxml"]}]}
+    {"type":"java","name":"Launch Main","request":"launch","mainClass":"Main","vmArgs":["--module-path","C:\\path\\to\\javafx-sdk-21\\lib","--add-modules","javafx.controls,javafx.fxml"]}]}
 ```
+Thay đường dẫn module-path bằng đường dẫn đến thư mục lib của thư viện JavaFX  
 Để chạy ứng dụng, vào file Main.java và chọn Run Java, hoặc vào tab Run and Debug (Ctrl + Shift + D) và nhấn Launch (F5)
 
 ---
@@ -57,6 +58,8 @@ Trong tab Run của thanh công cụ trên cùng, chọn Add Configuration và d
 Trong tab Project Structure (Ctrl + Alt + Shift + S), chọn mục Libraries trong Project Settings  
 Thêm thư viện JavaFX bằng cách bấm dấu "+" hoặc nhấn Alt + Insert, chọn Java  
 Chọn thư mục lib của thư viện JavaFX  
+Thêm thư viện mysql-connector bằng cách thêm thư mục mysql-connector (thư mục đã giải nén)  
+
 Trong tab Run, chọn Edit Configurations
 - Chọn Main class của ứng dụng
 - Chọn Modify options (Alt + M) -> Add VM options (Alt + V)
