@@ -8,6 +8,7 @@ import Subject from './pages/Subject';
 import Login from './pages/Login';
 import MyLoans from './pages/MyLoans';
 import Cart from './pages/Cart';
+import AdminPanel from './pages/AdminPanel';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/loans" element={<MyLoans />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </main>
     </AuthProvider>

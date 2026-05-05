@@ -71,6 +71,27 @@ export const api = {
   cancelLoan: (loanId) =>
     request(`/loans/${loanId}/cancel`, { method: 'POST' }),
 
+  // Admin
+  getAllLoans: (status) => {
+    const q = status ? `?status=${status}` : '';
+    return request(`/loans${q}`);
+  },
+
+  approveLoan: (loanId, adminId) =>
+    request(`/loans/${loanId}/approve?admin_id=${adminId}`, { method: 'POST' }),
+
+  rejectLoan: (loanId) =>
+    request(`/loans/${loanId}/cancel`, { method: 'POST' }),
+
+  bulkApproveLoans: (loanIds, adminId) =>
+    request(`/loans/bulk-approve?admin_id=${adminId}`, {
+      method: 'POST',
+      body: JSON.stringify({ loan_ids: loanIds }),
+    }),
+
+  getAuditLog: (limit = 50) =>
+    request(`/audit?limit=${limit}`),
+
   // Health
   health: () => request('/health'),
 };

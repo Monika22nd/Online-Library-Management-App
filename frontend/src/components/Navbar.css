@@ -190,8 +190,9 @@
   box-shadow: var(--shadow-lg);
   display: none;
   animation: fadeIn 0.2s ease;
+  z-index: 1001;
 }
-.user-menu:hover .user-dropdown {
+.user-dropdown.open {
   display: block;
 }
 .user-info {
@@ -223,6 +224,28 @@
   transition: all var(--transition);
 }
 .user-dropdown .dropdown-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface);
+}
+.user-dropdown .dropdown-item svg {
+  flex-shrink: 0;
+}
+.user-dropdown .admin-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+.user-dropdown .admin-link:hover {
+  color: var(--accent);
+  background: rgba(124, 131, 255, 0.08);
+}
+.user-dropdown .signout-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-dropdown .signout-item:hover {
   color: var(--danger);
   background: rgba(248, 113, 113, 0.08);
 }
