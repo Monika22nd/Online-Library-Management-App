@@ -39,3 +39,9 @@ docker-compose.override.yml
 # Java (legacy)
 out/
 *.class
+
+# Documentation
+*.md
+
+# Agent skills
+.agent/
