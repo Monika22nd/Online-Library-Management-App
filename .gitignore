@@ -40,8 +40,5 @@ docker-compose.override.yml
 out/
 *.class
 
-# Documentation
-*.md
-
 # Agent skills
 .agent/
