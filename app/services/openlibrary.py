@@ -9,7 +9,7 @@ async def search_books(query: str, limit: int = 20, page: int = 1) -> Dict:
     params = {
         "q": query,
         "limit": limit,
-        "page": page,
+        "offset": (page - 1) * limit,
         "fields": "key,title,author_name,isbn,cover_i,first_publish_year,subject,edition_count,language"
     }
     
