@@ -1,0 +1,186 @@
+Errors to watch for + manual tests
+===================================
+
+This file lists likely failure modes from the round of fixes that resolved
+plan.txt items 1–7, plus a checklist of manual tests to run before merging.
+
+
+Likely errors
+-------------
+
+1. Empty author lists for legacy books
+   - Books imported before this change have no rows in `book_authors`.
+   - `_authors_for()` will return [] for them, so `book.author` / `loan.author`
+     come back as null and the UI falls back to "—".
+   - Fix: re-import via `POST /api/books/import?query=...&limit=...` (which
+     now passes `author_refs`) or hit `POST /api/books/import_one` per work.
+   - Detect: SELECT COUNT(*) FROM book_authors; should be > 0 after a fresh
+     import. If still 0, check OL search response for `author_key` field.
+
+2. MySQL NULLS LAST is a no-op
+   - `_authors_for()` uses `BookAuthor.author_order.asc().nulls_last()`.
+     MySQL silently ignores NULLS LAST and just sorts ASC (NULLs first).
+   - Effect: if some BookAuthor rows have NULL `author_order`, those authors
+     appear before ordered ones. For our import path we always set
+     `author_order = enumerate(start=1)`, so this is moot today — but if a
+     manual SQL insert leaves order NULL, ordering may surprise you.
+
+3. CORS regression after deployment
+   - `allow_origins=["*"]` was replaced with explicit origins. Dev defaults
+     are localhost:3000 / 127.0.0.1:3000 / localhost:5173.
+   - Production / non-default ports MUST set `CORS_ALLOW_ORIGINS`
+     (comma-separated, e.g. `https://library.example.com,https://app.local`).
+   - Symptom: browser console shows
+     "blocked by CORS policy: No 'Access-Control-Allow-Origin'..."
+   - Fix: export CORS_ALLOW_ORIGINS before running uvicorn.
+
+4. import_one race + idempotency
+   - Two concurrent calls with the same work key will both reach
+     `get_book_by_openlibrary_key` → both return None → both insert.
+   - The first commit wins; the second raises IntegrityError on the
+     unique key (if one exists in MySQL on `openlibrary_work_key`).
+   - Test: hammer the endpoint twice in parallel; second call should
+     either return the existing id or 500. If 500, add ON DUPLICATE KEY
+     handling or wrap in a SELECT … FOR UPDATE.
+
+5. import_one with invalid / unknown OL key
+   - `openlibrary.get_book_details` returns None on 404 / network error.
+   - Route returns 404 "OpenLibrary work not found". Verify the FE in
+     BookDetail.handleBorrow surfaces this as an error toast (it does:
+     "Could not import this book to the catalog.").
+
+6. import_one cover_id extraction
+   - `details["cover_id"]` is `data["covers"][0]` if present. Some OL works
+     return covers=[null] or covers=[0]. We now pass that through unfiltered
+     into `cover_ids=[cover_id]`. Result: a broken cover URL on the catalog.
+   - Mitigation: in books_svc._first_cover_url we already filter falsy IDs;
+     verify by importing a known work with a 0-cover and checking the API.
+
+7. selectinload on editions/copies
+   - `get_book` now eager-loads editions + copies. For a book with many
+     editions and many copies per edition, this is one extra SELECT per
+     relationship — fine for the demo dataset (3 copies / 1 edition / book)
+     but can balloon if you bulk-import richer OL data later.
+   - Watch: book detail endpoint latency under load.
+
+8. Author upsert with very long names
+   - `Author.author_name` is VARCHAR(255). Some OL author names exceed that
+     for compound or institutional authors.
+   - Symptom: DataError on commit during import.
+   - Mitigation: truncate name to 255 in `_upsert_author` if observed.
+
+9. Author key length
+   - `Author.openlibrary_author_key` is VARCHAR(32). We store the full
+     `/authors/OL...A` form (≤ ~17 chars). Should be safe, but verify a few
+     by SELECTing length(openlibrary_author_key) FROM authors.
+
+10. Existing FE removed `coverUrlFromValue` — confirm no caller hidden in a
+    branch survives. `git grep coverUrlFromValue` should return no matches.
+
+
+Smoke tests (run in this order)
+-------------------------------
+
+[ ] Backend boots
+    export MYSQL_URL="mysql+pymysql://root:@localhost:3306/library_openlibrary?charset=utf8mb4"
+    alembic upgrade head
+    python -m uvicorn app.main:app --reload
+    Expect: "[seed] Created N demo user(s)." or no warning, server on :8000.
+
+[ ] Frontend boots
+    cd frontend && npm run dev
+    Expect: vite server on :3000, no CORS errors when API calls fire.
+
+[ ] CORS sanity
+    curl -i -H "Origin: http://localhost:3000" http://localhost:8000/api/health
+    Expect: header `access-control-allow-origin: http://localhost:3000`
+    (NOT `*`).
+
+[ ] Re-import to populate authors
+    curl -X POST "http://localhost:8000/api/books/import?query=python&limit=5"
+    Expect: {"saved": N}.
+    Then: SELECT COUNT(*) FROM authors;  -- > 0
+          SELECT COUNT(*) FROM book_authors;  -- > 0
+
+[ ] List endpoint includes author
+    curl http://localhost:8000/api/books?limit=5 | jq '.books[0]'
+    Expect: keys `author`, `authors`, real `cover_url` URL.
+
+[ ] Detail endpoint includes editions/copies
+    curl http://localhost:8000/api/books/1 | jq 'keys'
+    Expect: includes `editions`. Each edition has `copies[]` with
+    `circulation_status` etc.
+
+[ ] import_one idempotency
+    Get a work key: curl http://localhost:8000/api/search?q=node | jq '.books[0].openlibrary_key'
+    First call:  curl -X POST http://localhost:8000/api/books/import_one \
+                   -H "Content-Type: application/json" \
+                   -d '{"openlibrary_key":"/works/OLxxxxxW"}'
+    Expect: 200, returns book dict with `id`.
+    Second call (same key): same `id`, no new rows in books.
+
+[ ] import_one with bad key
+    curl -X POST http://localhost:8000/api/books/import_one \
+      -H "Content-Type: application/json" \
+      -d '{"openlibrary_key":"/works/DOES_NOT_EXIST"}'
+    Expect: 404 "OpenLibrary work not found".
+
+[ ] Loan dict shape
+    Login as john, add a book to cart, checkout, then:
+    curl http://localhost:8000/api/loans/user/<john_user_id>
+    Expect: each loan has `title`, `author`, `cover_url` (real URL).
+
+[ ] Admin loan view
+    Login as admin, open AdminPanel.
+    Expect: loans table shows cover thumbnails and (after re-import)
+    author column populated.
+
+[ ] BookDetail one-click import
+    Browse to /works/<key> for a work not in the local catalog.
+    Click "Request Borrow".
+    Expect: state flips to "Added to your cart." within ~1–2s.
+    Verify a new row appeared in `books` table with that work key.
+
+[ ] MyLoans page
+    After borrowing, visit /loans.
+    Expect: real cover images (not 0-MB placeholder), author shown
+    when the source book has authors persisted.
+
+[ ] Cart page
+    Add a few books, visit /cart.
+    Expect: covers + authors render. Checkout still works.
+
+[ ] No 500s on legacy data
+    For books imported before this change (no author rows), all endpoints
+    must still 200. `author` is null, `authors` is [], UI shows "—".
+
+
+Regression checks
+-----------------
+
+[ ] Old `auto_request_date` SQLite trigger replacement still works:
+    Create a PENDING loan; verify `request_date` was set by MySQL default.
+
+[ ] `trg_loans_check_max` still aborts the 6th active loan:
+    Create 5 PENDING loans for one member, attempt a 6th → 400 with
+    "max active loans (5)".
+
+[ ] `trg_loans_status_audit` still fires:
+    Approve a loan, then SELECT * FROM audit_log ORDER BY changed_at DESC
+    LIMIT 1; expect a row tied to that loan_id.
+
+[ ] sp_approve_loan still locks copies:
+    Two admins approve the same loan in parallel → only one wins,
+    the other gets a NOOP / status check fails gracefully.
+
+
+Known scope gaps (intentional, not bugs)
+----------------------------------------
+
+- Authors are only persisted at *import* time. Editing a book's authors
+  later requires manual SQL or a future admin endpoint.
+- `import_book_with_copies` still creates a single placeholder Edition
+  keyed `{work_key}-ed1`. Real per-edition data from
+  /works/.../editions.json is not yet pulled.
+- `users.member_id` mapping for admins still nullable; admins cannot borrow.
+- `reservations`, `fines`, `payments` tables remain unused.

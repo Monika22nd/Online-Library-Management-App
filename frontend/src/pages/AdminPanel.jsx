@@ -1,38 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import api from '../api';
+import api, { coverUrl } from '../api';
 import './AdminPanel.css';
 
-const STATUS_TABS = ['ALL', 'PENDING', 'APPROVED', 'RETURNED', 'CANCELLED'];
+const STATUS_TABS = [
+  { key: 'ALL',       label: 'All' },
+  { key: 'PENDING',   label: 'Pending' },
+  { key: 'APPROVED',  label: 'Approved' },
+  { key: 'RETURNED',  label: 'Returned' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+];
+
+function statusBadgeClass(s) {
+  switch (s) {
+    case 'APPROVED': return 'badge badge-approved';
+    case 'PENDING':  return 'badge badge-pending';
+    case 'RETURNED': return 'badge badge-returned';
+    case 'CANCELLED':
+    case 'REJECTED': return 'badge badge-cancelled';
+    default: return 'badge';
+  }
+}
 
 export default function AdminPanel() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeView, setActiveView] = useState('loans'); // 'loans' | 'audit'
   const [loans, setLoans] = useState([]);
   const [tab, setTab] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
   const [auditLog, setAuditLog] = useState([]);
-  const [showAudit, setShowAudit] = useState(false);
-  const [actionMsg, setActionMsg] = useState('');
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    if (user.role !== 'ADMIN') {
-      navigate('/');
-      return;
-    }
+    if (!user) { navigate('/login'); return; }
+    if (user.role !== 'ADMIN') { navigate('/'); return; }
   }, [user]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN') {
-      loadLoans(tab);
-    }
-  }, [user, tab]);
+    if (user?.role === 'ADMIN' && activeView === 'loans') loadLoans(tab);
+    if (user?.role === 'ADMIN' && activeView === 'audit') loadAudit();
+  }, [user, tab, activeView]);
 
   async function loadLoans(status) {
     setLoading(true);
@@ -48,268 +59,283 @@ export default function AdminPanel() {
   }
 
   async function loadAudit() {
+    setAuditLoading(true);
     try {
       const data = await api.getAuditLog(50);
       setAuditLog(data || []);
-      setShowAudit(true);
     } catch (err) {
       console.error(err);
+    } finally {
+      setAuditLoading(false);
     }
   }
 
   async function handleApprove(loanId) {
     try {
       await api.approveLoan(loanId, user.id);
-      setActionMsg(`Loan #${loanId} approved.`);
+      setActionMsg({ kind: 'success', text: `Loan #${loanId} approved.` });
       loadLoans(tab);
     } catch (err) {
-      setActionMsg(`Error: ${err.message}`);
+      setActionMsg({ kind: 'error', text: `Approve failed: ${err.message}` });
     }
   }
 
   async function handleReject(loanId) {
     try {
       await api.rejectLoan(loanId);
-      setActionMsg(`Loan #${loanId} rejected.`);
+      setActionMsg({ kind: 'success', text: `Loan #${loanId} rejected.` });
       loadLoans(tab);
     } catch (err) {
-      setActionMsg(`Error: ${err.message}`);
+      setActionMsg({ kind: 'error', text: `Reject failed: ${err.message}` });
     }
   }
 
   async function handleBulkApprove() {
     if (selected.size === 0) return;
+    const ids = Array.from(selected);
     try {
-      const ids = Array.from(selected);
-      await api.bulkApproveLoans(ids, user.id);
-      setActionMsg(`${ids.length} loans approved.`);
+      const res = await api.bulkApproveLoans(ids, user.id);
+      setActionMsg({ kind: 'success', text: `Approved ${res?.approved ?? ids.length} of ${ids.length} loan(s).` });
       setSelected(new Set());
       loadLoans(tab);
     } catch (err) {
-      setActionMsg(`Error: ${err.message}`);
+      setActionMsg({ kind: 'error', text: `Bulk approve failed: ${err.message}` });
     }
   }
 
   function toggleSelect(id) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
 
   function toggleSelectAll() {
-    const pendingLoans = loans.filter((l) => l.status === 'PENDING');
-    if (selected.size === pendingLoans.length && pendingLoans.length > 0) {
+    const pendingIds = loans.filter((l) => l.status === 'PENDING').map((l) => l.id);
+    if (selected.size === pendingIds.length && pendingIds.length > 0) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(pendingLoans.map((l) => l.id)));
+      setSelected(new Set(pendingIds));
     }
   }
 
-  const statusColor = (s) => {
-    switch (s) {
-      case 'APPROVED': return 'status-approved';
-      case 'PENDING': return 'status-pending';
-      case 'RETURNED': return 'status-returned';
-      case 'CANCELLED': case 'REJECTED': return 'status-cancelled';
-      default: return '';
-    }
-  };
-
-  // Stats
-  const stats = {
+  const stats = useMemo(() => ({
     total: loans.length,
-    pending: loans.filter((l) => l.status === 'PENDING').length,
+    pending:  loans.filter((l) => l.status === 'PENDING').length,
     approved: loans.filter((l) => l.status === 'APPROVED').length,
     returned: loans.filter((l) => l.status === 'RETURNED').length,
-  };
+    cancelled: loans.filter((l) => l.status === 'CANCELLED' || l.status === 'REJECTED').length,
+  }), [loans]);
 
-  const pendingLoans = loans.filter((l) => l.status === 'PENDING');
+  const pendingCount = stats.pending;
+  const showBulkBar = pendingCount > 0 && (tab === 'ALL' || tab === 'PENDING');
 
   if (!user || user.role !== 'ADMIN') return null;
 
   return (
     <div className="admin-page container">
-      <div className="admin-header slide-up">
+      <header className="admin-header slide-up">
         <div>
-          <h1 className="admin-title">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            Admin Panel
-          </h1>
-          <p className="admin-subtitle">Manage loan requests and monitor activity</p>
+          <p className="eyebrow">Administrator</p>
+          <h1 className="admin-title">Library admin</h1>
+          <p className="admin-subtitle">Review borrow requests, return books, and audit changes.</p>
         </div>
-        <button className="audit-toggle-btn" onClick={showAudit ? () => setShowAudit(false) : loadAudit}>
-          {showAudit ? 'Hide Audit Log' : 'View Audit Log'}
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="stats-grid slide-up">
-        <div className="stat-card">
-          <span className="stat-value">{stats.total}</span>
-          <span className="stat-label">Total Loans</span>
-        </div>
-        <div className="stat-card stat-pending">
-          <span className="stat-value">{stats.pending}</span>
-          <span className="stat-label">Pending</span>
-        </div>
-        <div className="stat-card stat-approved">
-          <span className="stat-value">{stats.approved}</span>
-          <span className="stat-label">Approved</span>
-        </div>
-        <div className="stat-card stat-returned">
-          <span className="stat-value">{stats.returned}</span>
-          <span className="stat-label">Returned</span>
-        </div>
-      </div>
+        <nav className="admin-view-nav">
+          <button
+            className={`view-tab ${activeView === 'loans' ? 'active' : ''}`}
+            onClick={() => setActiveView('loans')}
+          >
+            Loans
+          </button>
+          <button
+            className={`view-tab ${activeView === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveView('audit')}
+          >
+            Audit log
+          </button>
+        </nav>
+      </header>
 
       {actionMsg && (
-        <div className={`action-msg ${actionMsg.startsWith('Error') ? 'error' : 'success'}`}>
-          {actionMsg}
-          <button className="msg-close" onClick={() => setActionMsg('')}>×</button>
+        <div className={`action-msg msg-${actionMsg.kind}`}>
+          <span>{actionMsg.text}</span>
+          <button className="msg-close" onClick={() => setActionMsg(null)}>×</button>
         </div>
       )}
 
-      {/* Tabs + Bulk Actions */}
-      <div className="admin-toolbar">
-        <div className="admin-tabs">
-          {STATUS_TABS.map((s) => (
-            <button
-              key={s}
-              className={`tab-btn ${tab === s ? 'active' : ''}`}
-              onClick={() => setTab(s)}
-            >
-              {s.charAt(0) + s.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-        {pendingLoans.length > 0 && (tab === 'ALL' || tab === 'PENDING') && (
-          <div className="bulk-actions">
-            <button className="select-all-btn" onClick={toggleSelectAll}>
-              {selected.size === pendingLoans.length ? 'Deselect All' : 'Select All Pending'}
-            </button>
-            <button
-              className="bulk-approve-btn"
-              onClick={handleBulkApprove}
-              disabled={selected.size === 0}
-            >
-              Approve Selected ({selected.size})
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Loans Table */}
-      {loading ? (
-        <div className="admin-loading">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="table-row-skeleton">
-              <div className="skeleton" style={{ width: 40, height: 16 }} />
-              <div className="skeleton" style={{ width: '30%', height: 16 }} />
-              <div className="skeleton" style={{ width: '20%', height: 16 }} />
-              <div className="skeleton" style={{ width: 80, height: 16 }} />
+      {activeView === 'loans' && (
+        <>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <span className="stat-num">{stats.total}</span>
+              <span className="stat-lbl">Total in view</span>
             </div>
-          ))}
-        </div>
-      ) : loans.length === 0 ? (
-        <div className="admin-empty">
-          <p>No loans found for this filter.</p>
-        </div>
-      ) : (
-        <div className="loans-table-wrap">
-          <table className="loans-table">
-            <thead>
-              <tr>
-                <th className="th-check"></th>
-                <th>ID</th>
-                <th>Book</th>
-                <th>Borrower</th>
-                <th>Requested</th>
-                <th>Due Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loans.map((loan) => (
-                <tr key={loan.id} className={selected.has(loan.id) ? 'row-selected' : ''}>
-                  <td className="td-check">
-                    {loan.status === 'PENDING' && (
-                      <input
-                        type="checkbox"
-                        checked={selected.has(loan.id)}
-                        onChange={() => toggleSelect(loan.id)}
-                        className="loan-checkbox"
-                      />
-                    )}
-                  </td>
-                  <td className="td-id">#{loan.id}</td>
-                  <td className="td-book">
-                    <div className="book-cell">
-                      <img
-                        src={loan.cover_url || 'https://covers.openlibrary.org/b/id/0-S.jpg'}
-                        alt=""
-                        className="table-cover"
-                      />
-                      <span className="table-book-title">{loan.title || `Book #${loan.book_id}`}</span>
-                    </div>
-                  </td>
-                  <td className="td-user">{loan.username || `User #${loan.user_id}`}</td>
-                  <td className="td-date">{loan.request_date || '—'}</td>
-                  <td className="td-date">{loan.due_date || '—'}</td>
-                  <td>
-                    <span className={`status-badge ${statusColor(loan.status)}`}>
-                      {loan.status}
-                    </span>
-                  </td>
-                  <td className="td-actions">
-                    {loan.status === 'PENDING' && (
-                      <>
-                        <button className="action-approve" onClick={() => handleApprove(loan.id)}>
-                          Approve
-                        </button>
-                        <button className="action-reject" onClick={() => handleReject(loan.id)}>
-                          Reject
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
+            <div className="stat-card stat-pending">
+              <span className="stat-num">{stats.pending}</span>
+              <span className="stat-lbl">Pending</span>
+            </div>
+            <div className="stat-card stat-approved">
+              <span className="stat-num">{stats.approved}</span>
+              <span className="stat-lbl">Approved</span>
+            </div>
+            <div className="stat-card stat-returned">
+              <span className="stat-num">{stats.returned}</span>
+              <span className="stat-lbl">Returned</span>
+            </div>
+            <div className="stat-card stat-cancelled">
+              <span className="stat-num">{stats.cancelled}</span>
+              <span className="stat-lbl">Cancelled</span>
+            </div>
+          </div>
+
+          <div className="admin-toolbar">
+            <div className="admin-tabs">
+              {STATUS_TABS.map((s) => (
+                <button
+                  key={s.key}
+                  className={`loan-tab ${tab === s.key ? 'active' : ''}`}
+                  onClick={() => setTab(s.key)}
+                >
+                  {s.label}
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+            {showBulkBar && (
+              <div className="bulk-actions">
+                <button className="btn btn-ghost" onClick={toggleSelectAll}>
+                  {selected.size === pendingCount ? 'Clear selection' : `Select all pending (${pendingCount})`}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleBulkApprove}
+                  disabled={selected.size === 0}
+                >
+                  Approve selected ({selected.size})
+                </button>
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="admin-table-wrap">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="row-skeleton">
+                  <div className="skeleton" style={{ width: 24, height: 18 }} />
+                  <div className="skeleton" style={{ width: 40, height: 60 }} />
+                  <div className="skeleton" style={{ flex: 1, height: 16 }} />
+                  <div className="skeleton" style={{ width: 90, height: 22 }} />
+                </div>
+              ))}
+            </div>
+          ) : loans.length === 0 ? (
+            <div className="admin-empty">
+              <h3>No loans for this filter.</h3>
+              <p>Try a different status tab.</p>
+            </div>
+          ) : (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th className="th-check"></th>
+                    <th>ID</th>
+                    <th>Book</th>
+                    <th>Borrower</th>
+                    <th>Requested</th>
+                    <th>Due</th>
+                    <th>Status</th>
+                    <th className="th-actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loans.map((loan) => (
+                    <tr key={loan.id} className={selected.has(loan.id) ? 'row-selected' : ''}>
+                      <td className="td-check">
+                        {loan.status === 'PENDING' && (
+                          <input
+                            type="checkbox"
+                            checked={selected.has(loan.id)}
+                            onChange={() => toggleSelect(loan.id)}
+                          />
+                        )}
+                      </td>
+                      <td className="td-id">#{loan.id}</td>
+                      <td className="td-book">
+                        <img
+                          src={coverUrl(loan.cover_url)}
+                          alt=""
+                          className="row-cover"
+                        />
+                        <span className="row-title">
+                          {loan.title || `Book #${loan.requested_book_id || '?'}`}
+                        </span>
+                      </td>
+                      <td className="td-borrower">{loan.username || `Member #${loan.member_id}`}</td>
+                      <td className="td-date">{loan.request_date || '—'}</td>
+                      <td className="td-date">{loan.due_date || '—'}</td>
+                      <td><span className={statusBadgeClass(loan.status)}>{loan.status}</span></td>
+                      <td className="td-actions">
+                        {loan.status === 'PENDING' && (
+                          <>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleApprove(loan.id)}>
+                              Approve
+                            </button>
+                            <button className="btn btn-ghost btn-sm danger" onClick={() => handleReject(loan.id)}>
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Audit Log */}
-      {showAudit && (
-        <div className="audit-section slide-up">
-          <h2 className="audit-title">Audit Log</h2>
-          {auditLog.length === 0 ? (
-            <p className="audit-empty">No audit entries found.</p>
+      {activeView === 'audit' && (
+        <section className="audit-section">
+          <div className="audit-header">
+            <h2 className="audit-title">Recent activity</h2>
+            <button className="btn btn-ghost" onClick={loadAudit}>Refresh</button>
+          </div>
+          {auditLoading ? (
+            <div className="audit-list">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="audit-entry">
+                  <div className="skeleton" style={{ height: 14, width: '40%', marginBottom: 8 }} />
+                  <div className="skeleton" style={{ height: 12, width: '70%' }} />
+                </div>
+              ))}
+            </div>
+          ) : auditLog.length === 0 ? (
+            <div className="admin-empty">
+              <h3>No audit entries yet.</h3>
+              <p>Loan status changes will appear here automatically.</p>
+            </div>
           ) : (
             <div className="audit-list">
-              {auditLog.map((entry, i) => (
-                <div key={i} className="audit-entry">
+              {auditLog.map((entry) => (
+                <div key={entry.id} className="audit-entry">
                   <div className="audit-meta">
                     <span className="audit-table">{entry.table_name}</span>
                     <span className="audit-action">{entry.action}</span>
-                    <span className="audit-time">{entry.created_at}</span>
+                    <span className="audit-record">#{entry.record_id}</span>
+                    <span className="audit-time">{entry.changed_at}</span>
                   </div>
                   <div className="audit-change">
-                    Record #{entry.record_id}: <span className="old-val">{entry.old_value}</span>
-                    {' → '}
-                    <span className="new-val">{entry.new_value}</span>
+                    <span className="old-val">{entry.old_value || '—'}</span>
+                    <span className="audit-arrow">→</span>
+                    <span className="new-val">{entry.new_value || '—'}</span>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   );

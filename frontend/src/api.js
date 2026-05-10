@@ -12,6 +12,12 @@ async function request(url, options = {}) {
   return res.json();
 }
 
+const PLACEHOLDER_COVER = 'https://covers.openlibrary.org/b/id/0-M.jpg';
+
+export function coverUrl(value) {
+  return value || PLACEHOLDER_COVER;
+}
+
 export const api = {
   // OpenLibrary proxy
   search: (q, limit = 20, page = 1) =>
@@ -37,7 +43,13 @@ export const api = {
     request(`/books/${id}`),
 
   importBooks: (query = 'programming', limit = 50) =>
-    request(`/books/import?query=${query}&limit=${limit}`, { method: 'POST' }),
+    request(`/books/import?query=${encodeURIComponent(query)}&limit=${limit}`, { method: 'POST' }),
+
+  importOne: (openlibraryKey) =>
+    request('/books/import_one', {
+      method: 'POST',
+      body: JSON.stringify({ openlibrary_key: openlibraryKey }),
+    }),
 
   // Auth
   login: (data) =>

@@ -1,21 +1,25 @@
 .subject-page {
-  padding-top: 32px;
+  padding-top: var(--s-6);
 }
+
 .subject-header {
-  margin-bottom: 32px;
+  margin-bottom: var(--s-6);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--rule);
 }
 .subject-page-title {
   font-family: var(--font-serif);
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin-bottom: 6px;
 }
 .subject-count {
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
 }
-.page-info {
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-}
+
+/* uses .pagination/.page-btn/.page-info from Search.css scope is global */

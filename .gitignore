@@ -42,3 +42,14 @@ out/
 
 # Agent skills
 .agent/
+.claude/
+
+# Docs (course material, not source)
+docs/
+
+# Loose text files
+*.txt
+!plan.txt
+!errors_and_tests.txt
+!requirements.txt
+diagram/

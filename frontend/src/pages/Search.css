@@ -1,95 +1,105 @@
 .search-page {
-  padding-top: 32px;
+  padding-top: var(--s-6);
 }
 
 .search-header {
-  margin-bottom: 32px;
+  margin-bottom: var(--s-6);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--rule);
 }
 .search-title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
+  font-family: var(--font-serif);
+  font-size: clamp(1.8rem, 3.2vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 6px;
 }
 .search-highlight {
   color: var(--accent);
+  font-style: italic;
 }
 .search-meta {
-  font-size: 0.9rem;
-  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  letter-spacing: 0.04em;
 }
 
 .search-empty {
   text-align: center;
-  padding: 80px 20px;
+  padding: var(--s-9) 0;
 }
 .search-empty h1 {
+  font-family: var(--font-serif);
   font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: var(--s-3);
 }
 .search-empty p {
-  color: var(--text-secondary);
+  color: var(--ink-soft);
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .no-results {
   text-align: center;
-  padding: 60px 20px;
-  color: var(--text-secondary);
+  padding: var(--s-7) 0;
+  color: var(--ink-muted);
+  font-style: italic;
 }
 
-/* ─── Pagination ───────────────────────────────────────────── */
+/* ─── Pagination ─── */
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-top: 48px;
-  padding: 24px 0;
+  gap: var(--s-3);
+  margin-top: var(--s-7);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--rule);
 }
 .page-btn {
-  padding: 10px 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
   font-weight: 500;
+  color: var(--ink-soft);
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-card);
   transition: all var(--transition);
 }
 .page-btn:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: var(--accent);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 .page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.4;
   cursor: not-allowed;
 }
-
 .page-numbers {
   display: flex;
   gap: 4px;
 }
 .page-num {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  font-family: var(--font-sans);
   font-size: 0.88rem;
   font-weight: 500;
+  color: var(--ink-soft);
+  border-radius: var(--r-sm);
+  background: transparent;
   transition: all var(--transition);
 }
-.page-num:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
+.page-num:hover { background: var(--paper-deep); color: var(--ink); }
 .page-num.active {
-  background: var(--accent-gradient);
-  color: white;
-  border-color: transparent;
+  background: var(--ink);
+  color: var(--paper);
+}
+.page-info {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink-muted);
+  padding: 0 var(--s-3);
 }

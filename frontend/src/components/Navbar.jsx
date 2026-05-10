@@ -18,30 +18,20 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const browseRef = useRef(null);
+  const userRef = useRef(null);
   const inputRef = useRef(null);
-  const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    function handler(e) {
+      if (browseRef.current && !browseRef.current.contains(e.target)) setBrowseOpen(false);
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  // Close user dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -53,49 +43,56 @@ export default function Navbar() {
   };
 
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
+    <nav className="navbar">
       <div className="navbar-inner container">
         <Link to="/" className="navbar-logo">
-          <span className="logo-icon">📚</span>
-          <span className="logo-text">OpenLibrary</span>
+          <span className="logo-mark">L</span>
+          <span className="logo-text">The Library</span>
         </Link>
 
-        <div className="navbar-subjects">
-          {SUBJECTS.slice(0, 5).map((s) => (
-            <Link key={s.slug} to={`/subjects/${s.slug}`} className="subject-link">
-              {s.label}
-            </Link>
-          ))}
-          <div className="subject-more">
-            <button className="subject-link" onClick={() => setMenuOpen(!menuOpen)}>
-              More ▾
+        <div className="navbar-mid">
+          <div className="browse-menu" ref={browseRef}>
+            <button
+              className={`navbar-link ${browseOpen ? 'active' : ''}`}
+              onClick={() => setBrowseOpen((v) => !v)}
+            >
+              Browse
+              <svg className="caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
             </button>
-            {menuOpen && (
-              <div className="subject-dropdown" onMouseLeave={() => setMenuOpen(false)}>
-                {SUBJECTS.slice(5).map((s) => (
-                  <Link
-                    key={s.slug}
-                    to={`/subjects/${s.slug}`}
-                    className="dropdown-item"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {s.label}
-                  </Link>
-                ))}
+            {browseOpen && (
+              <div className="browse-dropdown">
+                <div className="dropdown-header">Subjects</div>
+                <div className="dropdown-grid">
+                  {SUBJECTS.map((s) => (
+                    <Link
+                      key={s.slug}
+                      to={`/subjects/${s.slug}`}
+                      className="dropdown-link"
+                      onClick={() => setBrowseOpen(false)}
+                    >
+                      {s.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+
+          <Link to="/search" className="navbar-link">Search</Link>
+          {user && <Link to="/loans" className="navbar-link">My Loans</Link>}
         </div>
 
         <form className="navbar-search" onSubmit={handleSearch}>
-          <svg className="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search books, authors, ISBNs..."
+            placeholder="Search books, authors…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="search-input"
@@ -105,61 +102,45 @@ export default function Navbar() {
         <div className="navbar-actions">
           {user ? (
             <>
-              <Link to="/cart" className="nav-action" title="Cart">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Link to="/cart" className="icon-link" title="Cart">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
                 </svg>
               </Link>
-              <Link to="/loans" className="nav-action" title="My Loans">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-                </svg>
-              </Link>
-              <div className="user-menu" ref={dropdownRef}>
-                <button
-                  className="user-btn"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                >
+              <div className="user-menu" ref={userRef}>
+                <button className="user-btn" onClick={() => setUserOpen((v) => !v)}>
                   <span className="user-avatar">{user.username[0].toUpperCase()}</span>
                 </button>
-                <div className={`user-dropdown ${dropdownOpen ? 'open' : ''}`}>
-                  <div className="user-info">
-                    <span className="user-name">{user.username}</span>
-                    <span className="user-role">{user.role}</span>
-                  </div>
-                  {user.role === 'ADMIN' && (
-                    <Link
-                      to="/admin"
-                      className="dropdown-item admin-link"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      </svg>
-                      Admin Panel
+                {userOpen && (
+                  <div className="user-dropdown">
+                    <div className="user-info">
+                      <span className="user-name">{user.username}</span>
+                      <span className="user-role">{user.role}</span>
+                    </div>
+                    <Link to="/loans" className="dropdown-link" onClick={() => setUserOpen(false)}>
+                      My Loans
                     </Link>
-                  )}
-                  <button
-                    className="dropdown-item signout-item"
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      logout();
-                      navigate('/');
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Sign Out
-                  </button>
-                </div>
+                    <Link to="/cart" className="dropdown-link" onClick={() => setUserOpen(false)}>
+                      Cart
+                    </Link>
+                    {user.role === 'ADMIN' && (
+                      <Link to="/admin" className="dropdown-link" onClick={() => setUserOpen(false)}>
+                        Admin Panel
+                      </Link>
+                    )}
+                    <button
+                      className="dropdown-link signout"
+                      onClick={() => { setUserOpen(false); logout(); navigate('/'); }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           ) : (
-            <Link to="/login" className="nav-login-btn">Sign In</Link>
+            <Link to="/login" className="btn btn-primary nav-signin">Sign In</Link>
           )}
         </div>
       </div>

@@ -10,30 +10,38 @@ async def search_books(query: str, limit: int = 20, page: int = 1) -> Dict:
         "q": query,
         "limit": limit,
         "offset": (page - 1) * limit,
-        "fields": "key,title,author_name,isbn,cover_i,first_publish_year,subject,edition_count,language"
+        "fields": "key,title,author_name,author_key,isbn,cover_i,first_publish_year,subject,edition_count,language"
     }
-    
+
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(url, params=params, timeout=15.0)
             resp.raise_for_status()
             data = resp.json()
-            
+
             books = []
             for doc in data.get("docs", []):
                 cover_url = None
                 if doc.get("cover_i"):
                     cover_url = f"https://covers.openlibrary.org/b/id/{doc['cover_i']}-M.jpg"
-                
+
                 subjects = doc.get("subject", [])
                 if isinstance(subjects, list):
                     subjects = ", ".join(subjects[:5])
-                
+
+                author_names = doc.get("author_name") or []
+                author_keys = doc.get("author_key") or []
+                author_refs = [
+                    {"key": f"/authors/{k}", "name": n}
+                    for k, n in zip(author_keys, author_names)
+                ]
+
                 books.append({
                     "openlibrary_key": doc.get("key"),
                     "title": doc.get("title"),
-                    "author": doc.get("author_name", ["Unknown"])[0] if doc.get("author_name") else "Unknown",
-                    "authors": doc.get("author_name", ["Unknown"]),
+                    "author": author_names[0] if author_names else "Unknown",
+                    "authors": author_names if author_names else ["Unknown"],
+                    "author_refs": author_refs,
                     "isbn": doc.get("isbn", [None])[0] if doc.get("isbn") else None,
                     "cover_url": cover_url,
                     "publish_year": doc.get("first_publish_year"),
@@ -76,7 +84,8 @@ async def get_book_details(openlibrary_key: str) -> Optional[Dict]:
                 cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
             
             # Get author details
-            authors = []
+            authors: list[str] = []
+            author_refs: list[Dict[str, str]] = []
             for author_ref in data.get("authors", []):
                 author_key = None
                 if isinstance(author_ref, dict):
@@ -86,10 +95,14 @@ async def get_book_details(openlibrary_key: str) -> Optional[Dict]:
                         author_resp = await client.get(f"{OPENLIBRARY_API}{author_key}.json", timeout=10.0)
                         if author_resp.status_code == 200:
                             author_data = author_resp.json()
-                            authors.append(author_data.get("name", "Unknown"))
+                            name = author_data.get("name", "Unknown")
+                            authors.append(name)
+                            author_refs.append({"key": author_key, "name": name})
                     except:
                         pass
-            
+
+            cover_id = data["covers"][0] if data.get("covers") else None
+
             return {
                 "openlibrary_key": openlibrary_key,
                 "title": data.get("title", "Unknown"),
@@ -97,7 +110,9 @@ async def get_book_details(openlibrary_key: str) -> Optional[Dict]:
                 "subjects": subjects_str,
                 "subject_list": subject_list,
                 "cover_url": cover_url,
+                "cover_id": cover_id,
                 "authors": authors if authors else ["Unknown"],
+                "author_refs": author_refs,
                 "first_publish_date": data.get("first_publish_date"),
                 "created": data.get("created", {}).get("value") if isinstance(data.get("created"), dict) else None,
                 "links": data.get("links", []),
@@ -212,29 +227,80 @@ async def get_author_details(author_key: str) -> Optional[Dict]:
             return None
 
 
-async def fetch_and_save_books(query: str = "programming", limit: int = 50):
-    import app.models.database as db
-    
+async def fetch_and_save_books(session, query: str = "programming", limit: int = 50) -> int:
+    """Search OpenLibrary and persist each result as a Book + Edition + 3 Copies.
+    `session` is a SQLAlchemy Session injected by the route."""
+    from app.services import books_svc
+
     result = await search_books(query, limit)
     books = result.get("books", [])
     saved = 0
-    
+
     for book in books:
-        existing = db.get_book_by_openlibrary_key(book["openlibrary_key"])
-        if not existing:
-            try:
-                db.create_book(
-                    openlibrary_key=book["openlibrary_key"],
-                    title=book["title"],
-                    author=book["author"],
-                    isbn=book.get("isbn"),
-                    cover_url=book.get("cover_url"),
-                    publish_year=book.get("publish_year"),
-                    subjects=book.get("subjects"),
-                    total_copies=3
-                )
-                saved += 1
-            except Exception as e:
-                print(f"Error saving book {book.get('title')}: {e}")
-    
+        try:
+            ol_key = book["openlibrary_key"]
+            if not ol_key:
+                continue
+            existing = books_svc.get_book_by_openlibrary_key(session, ol_key)
+            if existing:
+                continue
+
+            cover_id = None
+            if book.get("cover_url"):
+                # cover_url looks like .../b/id/{cover_id}-M.jpg
+                try:
+                    cover_id = int(book["cover_url"].split("/id/")[1].split("-")[0])
+                except Exception:
+                    cover_id = None
+
+            subjects_list = None
+            if isinstance(book.get("subjects"), str) and book["subjects"]:
+                subjects_list = [s.strip() for s in book["subjects"].split(",")]
+
+            books_svc.import_book_with_copies(
+                session,
+                openlibrary_key=ol_key,
+                title=book["title"] or "Untitled",
+                cover_id=cover_id,
+                publish_year=book.get("publish_year"),
+                subjects=subjects_list,
+                isbn=book.get("isbn"),
+                copies_to_create=3,
+                authors=book.get("author_refs"),
+            )
+            saved += 1
+        except Exception as e:
+            print(f"Error saving book {book.get('title')}: {e}")
+
     return saved
+
+
+async def import_one_by_work_key(session, work_key: str) -> Optional[int]:
+    """Import a single OpenLibrary work into the local catalog. Idempotent.
+    Returns the local books.book_id, or None if the work could not be loaded."""
+    from app.services import books_svc
+
+    # Normalize: accept "OL...W" or "/works/OL...W"
+    key = work_key.strip()
+    if not key.startswith("/works/"):
+        key = f"/works/{key.lstrip('/')}"
+
+    existing = books_svc.get_book_by_openlibrary_key(session, key)
+    if existing:
+        return existing.book_id
+
+    details = await get_book_details(key)
+    if not details:
+        return None
+
+    subjects_list = details.get("subject_list") or None
+    book = books_svc.import_book_with_copies(
+        session,
+        openlibrary_key=key,
+        title=details.get("title") or "Untitled",
+        cover_id=details.get("cover_id"),
+        subjects=subjects_list,
+        copies_to_create=3,
+        authors=details.get("author_refs"),
+    )
+    return book.book_id if book else None

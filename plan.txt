@@ -1,0 +1,56 @@
+Deferred backend fixes
+======================
+
+All items 1–5 below are now resolved on the backend; corresponding frontend
+workarounds have been removed. Item 7 (CORS) is also fixed. Item 6 was a
+frontend-only fix and was already resolved.
+
+1. loans_svc._loan_to_dict: cover_url returns the cover_id integer    [DONE]
+   ----------------------------------------------------------------
+   Now builds the OpenLibrary cover URL via _cover_url_for(book).
+   Frontend `coverUrlFromValue` helper has been removed; consumers use
+   `loan.cover_url` directly (with a placeholder fallback in `coverUrl()`).
+
+2. loans_svc._loan_to_dict: no author info                            [DONE]
+   ----------------------------------------
+   Loan dicts now include `author` (primary) and `authors` (full list),
+   joined via book_authors → authors in a single grouped query.
+
+3. books_svc._book_to_dict: no author info                            [DONE]
+   -----------------------------------------
+   Same join as #2, applied to both list and detail endpoints.
+
+4. books_svc._book_to_dict: no editions/copies breakdown              [DONE]
+   -----------------------------------------------------
+   `GET /api/books/{id}` now includes `editions: [{edition_id, title,
+   isbn_13, isbn_10, publish_date, number_of_pages,
+   copies: [{copy_id, barcode, circulation_status, condition_status,
+   shelf_location}]}]`. List endpoint omits this for payload size.
+
+5. POST /api/books/import_one                                          [DONE]
+   ----------------------------------------------------------
+   Accepts `{ openlibrary_key }` (with or without "/works/" prefix),
+   fetches via openlibrary.get_book_details, and persists via
+   books_svc.import_book_with_copies (idempotent on the work key).
+   BookDetail.handleBorrow now calls api.importOne() instead of the old
+   import-by-title hack.
+
+6. Audit log shape                                                     [DONE]
+   -----------------
+   No backend change; frontend already reads `entry.changed_at`.
+
+7. CORS allow_origins=["*"] with allow_credentials=True                [DONE]
+   ----------------------------------------------------
+   `app/main.py` now reads `CORS_ALLOW_ORIGINS` (comma-separated) from env
+   with sensible dev defaults (localhost:3000, 127.0.0.1:3000, :5173).
+
+Notes for follow-up
+-------------------
+- Author persistence runs during import (search-bulk and one-off): both paths
+  pass `author_refs` to `books_svc.import_book_with_copies`, which upserts
+  Author rows and links them via BookAuthor with `author_order`. Books that
+  were imported BEFORE this change have no author rows; re-importing or
+  running a backfill will fill them in.
+- `import_book_with_copies` still creates a single placeholder Edition keyed
+  `{openlibrary_key}-ed1`. If/when richer edition data is required, swap to
+  pulling /works/.../editions.json and persisting per-edition copies.

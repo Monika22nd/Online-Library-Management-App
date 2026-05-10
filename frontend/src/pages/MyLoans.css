@@ -1,144 +1,180 @@
 .loans-page {
-  padding-top: 32px;
+  padding-top: var(--s-6);
+}
+
+.loans-header {
+  margin-bottom: var(--s-5);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--rule);
 }
 .loans-title {
   font-family: var(--font-serif);
-  font-size: 2rem;
-  margin-bottom: 24px;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: var(--s-1) 0;
+}
+.loans-subtitle {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
 }
 
+/* ─── Tabs ─── */
 .loans-tabs {
   display: flex;
-  gap: 4px;
-  margin-bottom: 28px;
-  padding: 4px;
-  background: var(--bg-card);
-  border-radius: var(--radius-sm);
-  width: fit-content;
+  gap: var(--s-1);
+  margin-bottom: var(--s-5);
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
 }
-.tab-btn {
-  padding: 8px 18px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
+
+.loan-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
   font-weight: 500;
-  border-radius: 6px;
-  transition: all var(--transition);
+  color: var(--ink-muted);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+  margin-bottom: -1px;
 }
-.tab-btn:hover {
-  color: var(--text-primary);
+.loan-tab:hover { color: var(--ink); }
+.loan-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
 }
-.tab-btn.active {
-  background: var(--accent-gradient);
-  color: white;
+
+.tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--paper-deep);
+  border-radius: 9px;
 }
+.loan-tab.active .tab-count {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ─── List ─── */
+.loans-empty {
+  text-align: center;
+  padding: var(--s-8) var(--s-5);
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-md);
+  background: var(--paper-card);
+}
+.loans-empty h2 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  margin-bottom: var(--s-2);
+  color: var(--ink);
+}
+.loans-empty p { color: var(--ink-muted); }
 
 .loans-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.loan-card {
-  display: flex;
+.loan-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: var(--s-4);
   align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  transition: all var(--transition);
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--rule);
 }
-.loan-card:hover {
-  border-color: rgba(124, 131, 255, 0.3);
-}
+.loan-row:first-child { border-top: 1px solid var(--rule); }
 
 .loan-cover {
-  width: 50px;
-  height: 75px;
+  width: 56px;
+  height: 84px;
   object-fit: cover;
-  border-radius: 6px;
-  flex-shrink: 0;
+  background: var(--paper-deep);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
 }
 
-.loan-info {
-  flex: 1;
+.loan-main {
   min-width: 0;
 }
-.loan-book-title {
-  font-size: 0.95rem;
-  font-weight: 600;
+
+.loan-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
   margin-bottom: 2px;
 }
-.loan-author {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+
+.loan-book-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+  margin: 0;
 }
+
+.loan-author {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-muted);
+  margin-bottom: var(--s-2);
+}
+
 .loan-meta {
   display: flex;
-  gap: 16px;
   flex-wrap: wrap;
+  gap: var(--s-3) var(--s-5);
+  font-family: var(--font-sans);
 }
-.loan-status {
-  font-size: 0.8rem;
+.loan-meta > div { display: flex; flex-direction: column; gap: 2px; }
+.loan-meta dt {
+  font-size: 0.68rem;
   font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
 }
-.loan-date {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+.loan-meta dd {
+  font-size: 0.86rem;
+  color: var(--ink);
 }
+.loan-meta dd.overdue { color: var(--danger); font-weight: 600; }
+.due-rel { color: var(--ink-muted); font-weight: 400; }
 
 .loan-actions {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: var(--s-2);
   flex-shrink: 0;
 }
-.return-btn {
-  padding: 8px 16px;
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.2);
-  color: var(--success);
-  font-size: 0.82rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition);
-}
-.return-btn:hover {
-  background: rgba(52, 211, 153, 0.2);
-}
-.cancel-btn {
-  padding: 8px 16px;
-  background: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  color: var(--danger);
-  font-size: 0.82rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition);
-}
-.cancel-btn:hover {
-  background: rgba(248, 113, 113, 0.2);
-}
-
-.loans-empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
-}
+.loan-actions .btn { padding: 8px 16px; font-size: 0.85rem; }
 
 .loan-skeleton {
-  display: flex;
-  gap: 16px;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
+  align-items: center;
 }
 
-@media (max-width: 600px) {
-  .loan-card { flex-wrap: wrap; }
-  .loan-actions { width: 100%; }
-  .loans-tabs { overflow-x: auto; width: 100%; }
+@media (max-width: 720px) {
+  .loan-row {
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: auto auto;
+  }
+  .loan-cover { width: 48px; height: 72px; }
+  .loan-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+  }
 }
