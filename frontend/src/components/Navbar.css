@@ -26,19 +26,6 @@
 }
 .navbar-logo:hover { color: var(--ink); }
 
-.logo-mark {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-family: var(--font-serif);
-  font-weight: 700;
-  font-size: 1.15rem;
-  border-radius: var(--r-sm);
-}
-
 .logo-text {
   font-family: var(--font-serif);
   font-weight: 600;
@@ -265,7 +252,6 @@
 @media (max-width: 880px) {
   .navbar-mid { display: none; }
   .navbar-search { max-width: 240px; }
-  .logo-text { display: none; }
 }
 @media (max-width: 540px) {
   .navbar-search { display: none; }

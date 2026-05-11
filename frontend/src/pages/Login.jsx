@@ -36,7 +36,6 @@ export default function Login() {
       <div className="login-grid">
         <aside className="login-aside">
           <Link to="/" className="login-brand">
-            <span className="logo-mark">L</span>
             <span>The Library</span>
           </Link>
           <blockquote className="login-quote">

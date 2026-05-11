@@ -33,19 +33,6 @@
   font-size: 1.25rem;
   color: var(--ink);
 }
-.login-brand .logo-mark {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-radius: var(--r-sm);
-  font-family: var(--font-serif);
-  font-weight: 700;
-  font-size: 1.15rem;
-}
-
 .login-quote {
   max-width: 360px;
   font-family: var(--font-serif);

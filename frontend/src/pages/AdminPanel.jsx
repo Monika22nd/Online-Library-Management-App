@@ -72,8 +72,17 @@ export default function AdminPanel() {
 
   async function handleApprove(loanId) {
     try {
-      await api.approveLoan(loanId, user.id);
-      setActionMsg({ kind: 'success', text: `Loan #${loanId} approved.` });
+      const res = await api.approveLoan(loanId, user.id);
+      if (res?.status === 'APPROVED') {
+        setActionMsg({ kind: 'success', text: res.message || `Loan #${loanId} approved.` });
+      } else if (res?.status === 'REJECTED') {
+        // sp_approve_loan auto-rejected because no copy was available;
+        // the loan state changed, just not in the user's favor.
+        setActionMsg({ kind: 'error',
+          text: `Loan #${loanId} auto-rejected: ${res.message || 'no copies available'}.` });
+      } else {
+        setActionMsg({ kind: 'error', text: `Loan #${loanId}: ${res?.message || 'no change'}.` });
+      }
       loadLoans(tab);
     } catch (err) {
       setActionMsg({ kind: 'error', text: `Approve failed: ${err.message}` });

@@ -46,7 +46,6 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="navbar-inner container">
         <Link to="/" className="navbar-logo">
-          <span className="logo-mark">L</span>
           <span className="logo-text">The Library</span>
         </Link>
 

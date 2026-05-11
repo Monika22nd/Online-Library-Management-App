@@ -139,7 +139,16 @@ async def get_book(book_id: int, session: Session = Depends(get_db_session)):
 # ─── OpenLibrary Proxy API ─────────────────────────────────────
 
 @app.get("/api/search")
-async def search_books_external(q: str = "programming", limit: int = 20, page: int = 1):
+async def search_books_external(
+    q: str = "programming", limit: int = 20, page: int = 1,
+    session: Session = Depends(get_db_session),
+):
+    """Search the local catalog first. Fall back to OpenLibrary only if the
+    local DB has no match (so the demo still works on an empty schema)."""
+    local = books_svc.search_books_local(session, q, limit, page)
+    if local["books"]:
+        return local
+
     cache_key = f"search:{q}:{limit}:{page}"
     cached = redis_svc.get_cache(cache_key)
     if cached:
@@ -150,7 +159,13 @@ async def search_books_external(q: str = "programming", limit: int = 20, page: i
 
 
 @app.get("/api/works/{work_id}")
-async def get_work_details(work_id: str):
+async def get_work_details(work_id: str, session: Session = Depends(get_db_session)):
+    """Local catalog first; fall back to OpenLibrary for works we haven't
+    imported yet."""
+    local = books_svc.get_work_dict_by_openlibrary_key(session, work_id)
+    if local:
+        return local
+
     cache_key = f"work:/works/{work_id}"
     cached = redis_svc.get_cache(cache_key)
     if cached:
@@ -163,7 +178,13 @@ async def get_work_details(work_id: str):
 
 
 @app.get("/api/trending")
-async def get_trending(limit: int = 20):
+async def get_trending(limit: int = 20, session: Session = Depends(get_db_session)):
+    """'Trending' from the local catalog (most-recently-added). Falls back
+    to the OpenLibrary trending feed if the catalog is empty."""
+    local = books_svc.get_trending_local(session, limit)
+    if local:
+        return local
+
     cache_key = f"trending:{limit}"
     cached = redis_svc.get_cache(cache_key)
     if cached:
@@ -174,7 +195,14 @@ async def get_trending(limit: int = 20):
 
 
 @app.get("/api/subjects/{subject}")
-async def get_subject(subject: str, limit: int = 20, offset: int = 0):
+async def get_subject(
+    subject: str, limit: int = 20, offset: int = 0,
+    session: Session = Depends(get_db_session),
+):
+    local = books_svc.list_books_by_subject(session, subject, limit, offset)
+    if local["books"]:
+        return local
+
     cache_key = f"subject:{subject}:{limit}:{offset}"
     cached = redis_svc.get_cache(cache_key)
     if cached:
@@ -295,10 +323,14 @@ async def list_loans(
 async def approve_loan(
     loan_id: int, admin_id: int, session: Session = Depends(get_db_session)
 ):
-    success = loans_svc.approve_loan(session, loan_id, admin_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="Cannot approve loan")
-    return {"success": True}
+    """Approve a loan. Returns 200 whenever the loan state changed
+    (APPROVED or auto-REJECTED-no-copies) so the UI can reload either way.
+    Returns 400 only when the request itself was invalid (not pending,
+    not found, bad admin)."""
+    result = loans_svc.approve_loan(session, loan_id, admin_id)
+    if result["status"] in ("APPROVED", "REJECTED"):
+        return result
+    raise HTTPException(status_code=400, detail=result["message"])
 
 
 @app.post("/api/loans/{loan_id}/return")

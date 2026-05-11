@@ -173,13 +173,20 @@ async def get_subject_books(subject: str, limit: int = 20, offset: int = 0) -> D
                     cover_url = f"https://covers.openlibrary.org/b/id/{work['cover_id']}-M.jpg"
                 
                 authors = [a.get("name", "Unknown") for a in work.get("authors", [])]
-                
+                author_refs = [
+                    {"key": a.get("key"), "name": a.get("name")}
+                    for a in work.get("authors", [])
+                    if a.get("key") and a.get("name")
+                ]
+
                 books.append({
                     "openlibrary_key": work.get("key"),
                     "title": work.get("title"),
                     "author": authors[0] if authors else "Unknown",
                     "authors": authors if authors else ["Unknown"],
+                    "author_refs": author_refs,
                     "cover_url": cover_url,
+                    "cover_id": work.get("cover_id"),
                     "publish_year": work.get("first_publish_year"),
                     "edition_count": work.get("edition_count", 0),
                     "subjects": work.get("subject", []),

@@ -25,7 +25,12 @@ def _authors_for(session: Session, book_ids: list[int]) -> dict[int, list[str]]:
         select(BookAuthor.book_id, Author.author_name)
         .join(Author, Author.author_id == BookAuthor.author_id)
         .where(BookAuthor.book_id.in_(book_ids))
-        .order_by(BookAuthor.book_id, BookAuthor.author_order.asc().nulls_last())
+        # MySQL doesn't accept `NULLS LAST`; emulate with `IS NULL` ordering.
+        .order_by(
+            BookAuthor.book_id,
+            BookAuthor.author_order.is_(None),
+            BookAuthor.author_order.asc(),
+        )
     ).all()
     out: dict[int, list[str]] = {}
     for book_id, name in rows:
@@ -116,14 +121,52 @@ def get_all_loans(session: Session, status: str | None = None) -> list[dict]:
     return out
 
 
-def approve_loan(session: Session, loan_id: int, admin_id: int) -> bool:
-    session.execute(
-        text("CALL sp_approve_loan(:loan_id, :admin_id)"),
-        {"loan_id": loan_id, "admin_id": admin_id},
-    )
-    session.commit()
+def approve_loan(session: Session, loan_id: int, admin_id: int) -> dict:
+    """Approve a PENDING loan via `sp_approve_loan`. Returns a structured
+    result so the route can distinguish:
+      * APPROVED            — happy path (`approved=True`)
+      * REJECTED            — proc ran, but no available copy → loan now REJECTED
+      * not-approvable      — loan missing / wrong state / bad admin
+    The proc itself flips status to REJECTED when no copy is available; that
+    is a legitimate state change, not an error, and the caller should reload."""
+    admin = session.get(User, admin_id)
+    if not admin:
+        return {"approved": False, "status": None,
+                "message": f"Admin user #{admin_id} does not exist."}
+
+    loan_before = session.get(Loan, loan_id)
+    if not loan_before:
+        return {"approved": False, "status": None,
+                "message": f"Loan #{loan_id} not found."}
+    if loan_before.approval_status != "PENDING":
+        return {"approved": False, "status": loan_before.approval_status,
+                "message": f"Loan is already {loan_before.approval_status}."}
+
+    try:
+        session.execute(
+            text("CALL sp_approve_loan(:loan_id, :admin_id)"),
+            {"loan_id": loan_id, "admin_id": admin_id},
+        )
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        return {"approved": False, "status": None,
+                "message": f"Database error: {str(e)[:200]}"}
+
+    # Force a fresh read; the stored proc updated outside the ORM.
+    session.expire_all()
     loan = session.get(Loan, loan_id)
-    return bool(loan and loan.approval_status == "APPROVED")
+    if not loan:
+        return {"approved": False, "status": None,
+                "message": "Loan vanished after approval."}
+    if loan.approval_status == "APPROVED":
+        return {"approved": True, "status": "APPROVED",
+                "message": f"Loan #{loan_id} approved."}
+    if loan.approval_status == "REJECTED":
+        return {"approved": False, "status": "REJECTED",
+                "message": loan.notes or "No copies available."}
+    return {"approved": False, "status": loan.approval_status,
+            "message": f"Approval left the loan in {loan.approval_status}."}
 
 
 def return_loan(session: Session, loan_id: int) -> bool:
