@@ -192,17 +192,78 @@ target if you also moved the backend.
 ## Project Structure
 
 ```
-├── app/
-│   ├── main.py                  # FastAPI entry point & routes
-│   ├── models/                  # SQLAlchemy ORM models (one file per entity)
-│   ├── services/                # auth_svc, books_svc, loans_svc, audit_svc, openlibrary, redis_service
-│   └── scripts/                 # seed.py (demo users), seed_books.py (300 books from OpenLibrary)
-├── alembic/                     # Migrations (0001_initial, 0002_triggers_and_procedures)
+├── app/                                  # FastAPI backend (Python 3.11)
+│   ├── main.py                           # Flat route module — every endpoint lives here, no APIRouter
+│   ├── models/                           # SQLAlchemy 2.0 ORM, one file per entity
+│   │   ├── __init__.py                   # Re-exports Base + every model (Alembic autodiscovery)
+│   │   ├── base.py                       # Declarative Base + engine/session factory (reads MYSQL_URL)
+│   │   ├── user.py                       # users (auth, role, nullable member_id FK)
+│   │   ├── member.py                     # members (borrower profile)
+│   │   ├── book.py                       # books (work-level metadata, subjects JSON)
+│   │   ├── author.py                     # authors
+│   │   ├── book_author.py                # books ↔ authors join
+│   │   ├── edition.py                    # editions (per-ISBN print of a book)
+│   │   ├── copy.py                       # copies (physical inventory, circulation_status)
+│   │   ├── loan.py                       # loans (PENDING/APPROVED/REJECTED/RETURNED/CANCELLED)
+│   │   ├── reservation.py                # schema-only — no routes/UI yet
+│   │   ├── fine.py                       # schema-only — no routes/UI yet
+│   │   ├── payment.py                    # schema-only — no routes/UI yet
+│   │   ├── audit_log.py                  # written by trg_loans_status_audit
+│   │   └── sync_log.py                   # OpenLibrary import bookkeeping
+│   ├── services/                         # Business logic, split by domain
+│   │   ├── auth_svc.py                   # bcrypt (passlib), user + member creation
+│   │   ├── books_svc.py                  # MySQL-first readers: search_books_local, list_books_by_subject,
+│   │   │                                 #   get_trending_local, get_work_dict_by_openlibrary_key,
+│   │   │                                 #   import_book_with_copies (OpenLibrary → DB)
+│   │   ├── loans_svc.py                  # Thin wrappers around CALL sp_approve_loan / sp_return_loan /
+│   │   │                                 #   sp_cancel_loan / sp_bulk_approve_loans
+│   │   ├── audit_svc.py                  # Read audit_log rows for /admin
+│   │   ├── openlibrary.py                # Async httpx client (search/work/trending) — fallback only
+│   │   └── redis_service.py              # Cart + cache + Lua locks, with in-memory fallback
+│   └── scripts/
+│       ├── seed.py                       # Idempotent demo users (admin/john/jane)
+│       └── seed_books.py                 # Pulls ~300 books from OpenLibrary across 10 subjects
+│                                         #   (--per N, --no-enrich, --concurrency)
+│
+├── alembic/                              # Hand-written migrations (do NOT trust autogenerate)
+│   ├── env.py                            # Imports app.models to pick up metadata
+│   ├── versions/
+│   │   ├── 0001_initial.py               # All tables (ENUMs, BIGINT UNSIGNED, JSON, server defaults)
+│   │   └── 0002_triggers_and_procedures.py  # DDL via op.execute(); see db/sql/ for readable copy
+│   └── README.md                         # Migration cheatsheet
 ├── alembic.ini
-├── db/sql/                      # Reference copy of triggers & stored procedures
-├── frontend/                    # React SPA (Vite)
-├── openlibrary_schema.sql       # Canonical SQL schema (single source of truth)
-└── docker-compose.yml           # Redis only — API/frontend/MySQL run on the host
+│
+├── db/
+│   └── sql/
+│       └── triggers_and_procedures.sql   # Human-readable copy of trigger/proc DDL
+│
+├── frontend/                             # React 19 SPA (Vite)
+│   ├── src/
+│   │   ├── main.jsx                      # Entry point (NOT main.ts — TS scaffolding is unused)
+│   │   ├── App.jsx                       # Route table
+│   │   ├── AuthContext.jsx               # user + token persisted to localStorage
+│   │   ├── api.js                        # Single request() wrapper + coverUrl() placeholder
+│   │   ├── index.css                     # "Editorial Light" design tokens (--paper, --ink, --accent…)
+│   │   ├── pages/
+│   │   │   ├── Home.jsx / .css           # Trending + subject chips (MySQL-first)
+│   │   │   ├── Search.jsx / .css         # Local title/author search
+│   │   │   ├── Subject.jsx / .css        # Books filtered by subjects JSON
+│   │   │   ├── BookDetail.jsx / .css     # Work view with editions[]/copies[]
+│   │   │   ├── Cart.jsx / .css           # Redis-backed cart (atomic ops via Lua)
+│   │   │   ├── MyLoans.jsx / .css        # User's loan history
+│   │   │   ├── AdminPanel.jsx / .css     # Pending queue + bulk approve + audit log
+│   │   │   └── Login.jsx / .css
+│   │   └── components/
+│   │       ├── Navbar.jsx / .css
+│   │       └── BookCard.jsx / .css
+│   ├── vite.config.js                    # :3000 dev server, proxies /api → :8000
+│   └── package.json
+│
+├── openlibrary_schema.sql                # Canonical SQL schema (single source of truth)
+├── docker-compose.yml                    # Redis only — API/frontend/MySQL run on the host
+├── requirements.txt                      # Backend deps (FastAPI, SQLAlchemy, passlib, httpx, redis…)
+├── CLAUDE.md                             # Project conventions for AI assistants
+└── README.md
 ```
 
 ## Database
